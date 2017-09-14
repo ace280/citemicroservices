@@ -1,0 +1,7 @@
+0.1 First attempts
+0.2 Already doing some things
+0.3 Generally more verbose log output
+	Does all jobs
+	ISSUE: Number of fields in Catalog has to be fixed.
+0.4 Dropped older code that had remained commented out.
+
