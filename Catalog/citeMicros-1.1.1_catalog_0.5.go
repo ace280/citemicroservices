@@ -1,6 +1,7 @@
 package main
 
-//Import Block: imports necessary libraries
+//***Import Block: imports necessary libraries***
+
 import (
 	"encoding/csv"
 	"encoding/json"
@@ -17,15 +18,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
-//Type Defenition Block: defines necessary data structures
+//***Type Defenition Block: defines necessary data structures***
 
-//CTSURN is used in splitCTS, isCTSURN and functions in the Endpoint Handling Block to store CTSURN information.
+//Stores CTSURN information. Used in splitCTS, isCTSURN and functions in the Endpoint Handling Block.
 type CTSURN struct {
 	Stem      string
 	Reference string
 }
 
-//Node is used as array(slice) in NodeResponse to store node information.
+//Stores Node information. Used in NodeResponse.
 type Node struct {
 	URN      []string `json:"urn"`
 	Text     []string `json:"text,omitempty"`
@@ -34,7 +35,7 @@ type Node struct {
 	Index    int      `json:"sequence"`
 }
 
-//Versions is used in ReturnCiteVersion to store version information which are added to CITEResponse for further processing.
+//Stores version information which are added to CITEResponse for further processing. Used in ReturnCiteVersion
 type Versions struct {
 	Texts          string `json:"texts"`
 	Textcatalog    string `json:"textatalog,omitempty"`
@@ -46,21 +47,21 @@ type Versions struct {
 	ORCA           string `json:"orca,omitempty"`
 }
 
-//CITEResponse is used in ReturnCiteVersion to store cite version information and a Versions variable which are parsed to JSON format and displayed.
+//Stores cite version information and a versions variable which are parsed to JSON format and displayed. Used in ReturnCiteVersion
 type CITEResponse struct {
 	Status   string   `json:"status"`
 	Service  string   `json:"service"`
 	Versions Versions `json:"versions"`
 }
 
-//VersionResponse is used in ReturnTextsVersion to store text version information which are parsed to JSON format and displayed.
+//Stores text version information which are parsed to JSON format and displayed. Used in ReturnTextsVersion
 type VersionResponse struct {
 	Status  string `json:"status"`
 	Service string `json:"service"`
 	Version string `json:"version"`
 }
 
-//NodeResponse stores node response results from the server which are later parsed to JSON format and displayed.
+//Stores node response results which are later parsed to JSON format and displayed. Used throughout the Endpoint Handling Block.
 type NodeResponse struct {
 	requestURN []string `json:"requestURN"`
 	Status     string   `json:"status"`
@@ -70,7 +71,7 @@ type NodeResponse struct {
 	Nodes      []Node   `json:""`
 }
 
-//URNResponse is used in ParseURNS to store the response data and passed to ReturnWorkURNS where it is further processed, parsed to JSON format and displayed.
+//Stores URN response results, which are passed to ReturnWorkURNS for further processing, parsing to JSON format and displaying. Used in ParseURNS.
 type URNResponse struct {
 	requestURN []string `json:"requestURN"`
 	Status     string   `json:"status"`
@@ -79,23 +80,15 @@ type URNResponse struct {
 	URN        []string `json:"urns"`
 }
 
-//Stores catalog data to return in ReturnCatalog
+//Stores catalog response results, which are parsed to JSON format and displayed. Used in ReturnCatalog.
 type CatalogResponse struct {
 	Status  string   `json:"status"`
 	Service string   `json:"service"`
 	Message string   `json:"message,omitempty"`
 	URN     []string `json:"urns"`
-	/*
-		CitationScheme	[]string			`json:"citationScheme"`
-		groupName				[]string			`json:"urns"`
-		workTitle				[]string			`json:"urns"`
-		versionLabel		[]string			`json:"urns"`
-		ecemplarLabel		[]string			`json:"urns"`
-		online					[]string			`json:"urns"` */
-	//Catalog		 Catalog	`json:"entries,omitempty"`
 }
 
-//Stores information of a work to pass them to other functions. Usedsed in ParseWork and the Endpoint Handling Block
+//Stores work information for transfer to other functions. Used in ParseWork and the Endpoint Handling Block.
 type Work struct {
 	WorkURN string
 	URN     []string
@@ -108,7 +101,7 @@ type Collection struct {
 	Works []Work
 }
 
-//Stores information of a CEX catalog entry. Format of CEX catalog seems not to be fixed yet...
+//Stores CEX catalog entry information. Format of CEX catalog seems not to be fixed yet...
 type CatalogEntry struct {
 	URN            string
 	CitationScheme string
@@ -120,17 +113,17 @@ type CatalogEntry struct {
 	Lang           string
 }
 
-//Stores catalog entries.
+//Stores catalog entries. Used in ParseCatalog to transfer results to ReturnCatalog.
 type Catalog struct {
 	CatalogEntries []CatalogEntry
 }
 
-//Stores a sourcetext. Used by parsing functions and Endpoint Handling Block functions.
+//Stores a sourcetext. Used by parsing functions and in Endpoint Handling Block.
 type CTSParams struct {
 	Sourcetext string
 }
 
-//Stores server configuration.
+//Stores server configuration. Used in all functions that need access to server parameters and the source.
 type ServerConfig struct {
 	Host       string `json:"host"`
 	Port       string `json:"port"`
@@ -138,16 +131,16 @@ type ServerConfig struct {
 	TestSource string `json:"test_cex_source"`
 }
 
-//Helpfunction Block: These functions perform tasks that are necessary in multiple functions in the Endpoint Handling Block
+//***Helpfunction Block: These functions perform tasks that are necessary in multiple functions in the Endpoint Handling Block***
 
-//Splits given CTS string into its Stem and Reference. Returns CTSURN.
+//Splits CTS string s into its Stem and Reference. Returns CTSURN.
 func splitCTS(s string) CTSURN {
 	var result CTSURN                                                                                         //initialize result as CTSURN
 	result = CTSURN{Stem: strings.Join(strings.Split(s, ":")[0:4], ":"), Reference: strings.Split(s, ":")[4]} //first four parts go into the stem, last (fourth) part goes into reference
 	return result                                                                                             //returns as CTSURN
 }
 
-//Loads a JSON file defined by given string and parses it. Returns ServerConfig.
+//Loads and parses JSON file defined by string s. Returns ServerConfig.
 func LoadConfiguration(file string) ServerConfig {
 	var config ServerConfig          //initialize config as ServerConfig
 	configFile, err := os.Open(file) //attempt to open file
@@ -160,7 +153,7 @@ func LoadConfiguration(file string) ServerConfig {
 	return config                             //return ServerConfig config
 }
 
-//Returns boolf for wether a string slice contains the given string.
+//Returns boolf for wether string slice s contains string e.
 func contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
@@ -170,19 +163,19 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-//Returns bool for wether given string resembles a URN-range. Called in ReturnReff and ReturnPassage.
+//Returns bool for wether string s resembles a URN-range. Called in ReturnReff and ReturnPassage.
 func isRange(s string) bool {
 	switch {
-	case len(strings.Split(s, ":")) < 5: //URN has to have reference to be a range
-		return false
-	case strings.Contains(strings.Split(s, ":")[4], "-"): //reference must contain a "-" indicating a range of URNs
-		return true
-	default:
-		return false
+	case len(strings.Split(s, ":")) < 5: //Test wether URN has reference..
+		return false //..else its not a range.
+	case strings.Contains(strings.Split(s, ":")[4], "-"): //The Reference must contain a hyphen ('-') indicating a range of URNs.
+		return true //Than it should be a range.
+	default: //In any other case..
+		return false //...its not a CTS URN range.
 	}
 }
 
-//Returns bool for whether length and structure of string indicate it is a valid URN. Called in Endpoint Handling Block.
+//Returns bool for whether length and structure of string s indicate it is a valid CTS URN. Called in Endpoint Handling Block.
 func isCTSURN(s string) bool {
 	log.Println("Testing wether \"" + s + "\" is a valid CTS URN")
 	test := strings.Split(s, ":") //initializes string array by splitting string into functional parts.
@@ -205,7 +198,7 @@ func isCTSURN(s string) bool {
 	}
 }
 
-//Returns bool for wether bool is contained in bool slice.
+//Returns bool for wether bool e is contained in bool slice s.
 func boolcontains(s []bool, e bool) bool {
 	for _, a := range s {
 		if a == e {
@@ -215,17 +208,17 @@ func boolcontains(s []bool, e bool) bool {
 	return false
 }
 
-//Returns bool for wether string is contained in string slice on level 1 of the URN.
+//Returns bool for wether string e is contained in string slice s on level 1 of the URN.
 func level1contains(s []string, e string) bool {
-	var match []bool   //initialize match variable as bool array
-	for i := range s { //go through string array. if regex matches given string plus one level
+	var match []bool   //initialize bool array match
+	for i := range s { //go through string array. if regex matches string plus one level
 		match2, _ := regexp.MatchString((e + "([:|.]*[0-9|a-z]+)$"), s[i])
 		match = append(match, match2)
 	}
 	return boolcontains(match, true)
 }
 
-//Returns bool for wether string is contained in string slice on level 2 of the URN.
+//Returns bool for wether string e is contained in string slice s on level 2 of the URN.
 func level2contains(s []string, e string) bool {
 	var match []bool
 	for i := range s {
@@ -235,7 +228,7 @@ func level2contains(s []string, e string) bool {
 	return boolcontains(match, true)
 }
 
-//Returns bool for wether string is contained in string slice on level 3 of the URN.
+//Returns bool for wether string e is contained in string slice s on level 3 of the URN.
 func level3contains(s []string, e string) bool {
 	var match []bool
 	for i := range s {
@@ -245,7 +238,7 @@ func level3contains(s []string, e string) bool {
 	return boolcontains(match, true)
 }
 
-//Returns bool for wether string is contained in string slice on level 4 of the URN.
+//Returns bool for wether string e is contained in string slice s on level 4 of the URN.
 func level4contains(s []string, e string) bool {
 	var match []bool
 	for i := range s {
@@ -255,22 +248,22 @@ func level4contains(s []string, e string) bool {
 	return boolcontains(match, true)
 }
 
-//removeDuplicatesUnordered removes dublicate URNs. Returns a slice of all unique elements.
+//Removes dublicate URNs from elements. Returns a slice of all unique elements.
 func removeDuplicatesUnordered(elements []string) []string {
-	encountered := map[string]bool{}
-
+	encountered := map[string]bool{} //initalize bool map with string keys
 	// Create a map of all unique elements.
 	for v := range elements {
-		encountered[elements[v]] = true
+		encountered[elements[v]] = true //all elements are set to true
 	}
-
 	// Place all keys from the map into a slice.
 	result := []string{}
 	for key, _ := range encountered {
-		result = append(result, key)
+		result = append(result, key) //append every key to the slice
 	}
 	return result
 }
+
+//***Main Block***
 
 //Initializes mux server, loads configuration from config file, sets the serverIP, maps endpoints to respective funtions. Initialises the headers.
 func main() {
@@ -308,30 +301,24 @@ func main() {
 	log.Fatal(http.ListenAndServe(serverIP, handlers.CORS(originsOk, headersOk, methodsOk)(router)))
 }
 
-//getContent gets the data from the given URL. Returns data as byte slice and nil if successfull, returns nil and error message in case of failure.
+//Fetches data from the url. Returns byte slice. Error handling implemented.
 func getContent(url string) ([]byte, error) {
-	//get response from server
-	resp, err := http.Get(url)
-	//return in case of GET error
+	resp, err := http.Get(url) //get response from server
 	if err != nil {
-		return nil, fmt.Errorf("GET error: %v", err)
+		return nil, fmt.Errorf("GET error: %v", err) //return in case of GET error
 	}
-	defer resp.Body.Close()
-	//return in case of http status error
+	defer resp.Body.Close() //return in case of http status error
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Status error: %v", resp.StatusCode)
 	}
-	//reas response into byte slice
-	data, err := ioutil.ReadAll(resp.Body)
-	//return in case of read error
-	if err != nil {
+	data, err := ioutil.ReadAll(resp.Body) //read response into byte slice
+	if err != nil {                        //return in case of read error
 		return nil, fmt.Errorf("Read body: %v", err)
 	}
-	//return body data if success
 	return data, nil
 }
 
-//ReturnWorkURNS prints
+//ReturnWorkURNS returns the URNs as found in the #!ctsdata block of the CEX file
 func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
 	log.Println("Called function: ReturWorkURNS")
 	confvar := LoadConfiguration("config.json")
@@ -1458,7 +1445,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 	requestCEX = vars["CEX"]                    //save CEX name in CEX variable
 	var sourcetext string                       //initialize sourcetext variable; will hold CEX data
 	switch {                                    //switch to determine wether a CEX file was specified
-	case requestCEX != "": 						//either {CEX}/catalog/ or /{CEX}/catalog/{URN}
+	case requestCEX != "": //either {CEX}/catalog/ or /{CEX}/catalog/{URN}
 		sourcetext = confvar.Source + requestCEX + ".cex" //build URL to CEX file if CEX file was specified
 		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
@@ -1484,7 +1471,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			log.Println("ReturnCatalog executed succesfully")
 			return
 		}
-	
+
 		catalogResult := ParseCatalog(CTSParams{Sourcetext: sourcetext}) //parse the catalog
 		//ToDo: check if catalogResult is empty --> Message + log
 		entries := catalogResult.CatalogEntries // get Catalog Entries ([]CatalogEntry)
