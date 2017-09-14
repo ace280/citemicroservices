@@ -2,6 +2,7 @@
 0.2 Already doing some things
 0.3 Generally more verbose log output
 	Does all jobs
-	ISSUE: Number of fields in Catalog has to be fixed.
+	ISSUE: Number of fields in catalog has to be fixed.
 0.4 Dropped older code that had remained commented out.
+0.5 fixed issue with fields in catalog. --> Not a final solution though
 
