@@ -20,6 +20,7 @@ import (
 )
 
 var clog = lumber.NewConsoleLogger(lumber.INFO)
+var 
 
 //***Type Defenition Block: defines necessary data structures***
 
@@ -351,8 +352,9 @@ func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
 	clog.Info("ReturWorkURNS executed succesfully")
 }
 
-func ParseURNS(p CTSParams) URNResponse {
-	clog.Info("Parsing URNS")
+
+func ParseURNS(p CTSParams) URNResponse { //suggestion: change name to ParseURNSFromCTSdata
+	clog.Info("Parsing URNS from #!ctsdata")
 	input_file := p.Sourcetext
 	data, err := getContent(input_file)
 	if err != nil {
