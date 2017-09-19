@@ -1,6 +1,7 @@
 package main
 
-//Import Block: imports necessary libraries
+//***Import Block: imports necessary libraries***
+
 import (
 	"encoding/csv"
 	"encoding/json"
@@ -15,17 +16,20 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/jcelliott/lumber"
 )
 
-//Type Defenition Block: defines necessary data structures
+var clog = lumber.NewConsoleLogger(lumber.INFO)
 
-//CTSURN is used in splitCTS, isCTSURN and functions in the Endpoint Handling Block to store CTSURN information.
+//***Type Defenition Block: defines necessary data structures***
+
+//Stores CTSURN information. Used in splitCTS, isCTSURN and functions in the Endpoint Handling Block.
 type CTSURN struct {
 	Stem      string
 	Reference string
 }
 
-//Node is used as array(slice) in NodeResponse to store node information.
+//Stores Node information. Used in NodeResponse.
 type Node struct {
 	URN      []string `json:"urn"`
 	Text     []string `json:"text,omitempty"`
@@ -34,7 +38,7 @@ type Node struct {
 	Index    int      `json:"sequence"`
 }
 
-//Versions is used in ReturnCiteVersion to store version information which are added to CITEResponse for further processing.
+//Stores version information which are added to CITEResponse for further processing. Used in ReturnCiteVersion
 type Versions struct {
 	Texts          string `json:"texts"`
 	Textcatalog    string `json:"textatalog,omitempty"`
@@ -46,21 +50,21 @@ type Versions struct {
 	ORCA           string `json:"orca,omitempty"`
 }
 
-//CITEResponse is used in ReturnCiteVersion to store cite version information and a Versions variable which are parsed to JSON format and displayed.
+//Stores cite version information and a versions variable which are parsed to JSON format and displayed. Used in ReturnCiteVersion
 type CITEResponse struct {
 	Status   string   `json:"status"`
 	Service  string   `json:"service"`
 	Versions Versions `json:"versions"`
 }
 
-//VersionResponse is used in ReturnTextsVersion to store text version information which are parsed to JSON format and displayed.
+//Stores text version information which are parsed to JSON format and displayed. Used in ReturnTextsVersion
 type VersionResponse struct {
 	Status  string `json:"status"`
 	Service string `json:"service"`
 	Version string `json:"version"`
 }
 
-//NodeResponse stores node response results from the server which are later parsed to JSON format and displayed.
+//Stores node response results which are later parsed to JSON format and displayed. Used throughout the Endpoint Handling Block.
 type NodeResponse struct {
 	requestURN []string `json:"requestURN"`
 	Status     string   `json:"status"`
@@ -70,7 +74,7 @@ type NodeResponse struct {
 	Nodes      []Node   `json:""`
 }
 
-//URNResponse is used in ParseURNS to store the response data and passed to ReturnWorkURNS where it is further processed, parsed to JSON format and displayed.
+//Stores URN response results, which are passed to ReturnWorkURNS for further processing, parsing to JSON format and displaying. Used in ParseURNS.
 type URNResponse struct {
 	requestURN []string `json:"requestURN"`
 	Status     string   `json:"status"`
@@ -79,23 +83,15 @@ type URNResponse struct {
 	URN        []string `json:"urns"`
 }
 
-//Stores catalog data to return in ReturnCatalog
+//Stores catalog response results, which are parsed to JSON format and displayed. Used in ReturnCatalog.
 type CatalogResponse struct {
 	Status  string   `json:"status"`
 	Service string   `json:"service"`
 	Message string   `json:"message,omitempty"`
 	URN     []string `json:"urns"`
-	/*
-		CitationScheme	[]string			`json:"citationScheme"`
-		groupName				[]string			`json:"urns"`
-		workTitle				[]string			`json:"urns"`
-		versionLabel		[]string			`json:"urns"`
-		ecemplarLabel		[]string			`json:"urns"`
-		online					[]string			`json:"urns"` */
-	//Catalog		 Catalog	`json:"entries,omitempty"`
 }
 
-//Stores information of a work to pass them to other functions. Usedsed in ParseWork and the Endpoint Handling Block
+//Stores work information for transfer to other functions. Used in ParseWork and the Endpoint Handling Block.
 type Work struct {
 	WorkURN string
 	URN     []string
@@ -108,7 +104,7 @@ type Collection struct {
 	Works []Work
 }
 
-//Stores information of a CEX catalog entry. Format of CEX catalog seems not to be fixed yet...
+//Stores CEX catalog entry information. Format of CEX catalog seems not to be fixed yet...
 type CatalogEntry struct {
 	URN            string
 	CitationScheme string
@@ -120,17 +116,17 @@ type CatalogEntry struct {
 	Lang           string
 }
 
-//Stores catalog entries.
+//Stores catalog entries. Used in ParseCatalog to transfer results to ReturnCatalog.
 type Catalog struct {
 	CatalogEntries []CatalogEntry
 }
 
-//Stores a sourcetext. Used by parsing functions and Endpoint Handling Block functions.
+//Stores a sourcetext. Used by parsing functions and in Endpoint Handling Block.
 type CTSParams struct {
 	Sourcetext string
 }
 
-//Stores server configuration.
+//Stores server configuration. Used in all functions that need access to server parameters and the source.
 type ServerConfig struct {
 	Host       string `json:"host"`
 	Port       string `json:"port"`
@@ -138,16 +134,16 @@ type ServerConfig struct {
 	TestSource string `json:"test_cex_source"`
 }
 
-//Helpfunction Block: These functions perform tasks that are necessary in multiple functions in the Endpoint Handling Block
+//***Helpfunction Block: These functions perform tasks that are necessary in multiple functions in the Endpoint Handling Block***
 
-//Splits given CTS string into its Stem and Reference. Returns CTSURN.
+//Splits CTS string s into its Stem and Reference. Returns CTSURN.
 func splitCTS(s string) CTSURN {
 	var result CTSURN                                                                                         //initialize result as CTSURN
 	result = CTSURN{Stem: strings.Join(strings.Split(s, ":")[0:4], ":"), Reference: strings.Split(s, ":")[4]} //first four parts go into the stem, last (fourth) part goes into reference
 	return result                                                                                             //returns as CTSURN
 }
 
-//Loads a JSON file defined by given string and parses it. Returns ServerConfig.
+//Loads and parses JSON file defined by string s. Returns ServerConfig.
 func LoadConfiguration(file string) ServerConfig {
 	var config ServerConfig          //initialize config as ServerConfig
 	configFile, err := os.Open(file) //attempt to open file
@@ -160,7 +156,7 @@ func LoadConfiguration(file string) ServerConfig {
 	return config                             //return ServerConfig config
 }
 
-//Returns boolf for wether a string slice contains the given string.
+//Returns boolf for wether string slice s contains string e.
 func contains(s []string, e string) bool {
 	for _, a := range s {
 		if a == e {
@@ -170,42 +166,42 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-//Returns bool for wether given string resembles a URN-range. Called in ReturnReff and ReturnPassage.
+//Returns bool for wether string s resembles a URN-range. Called in ReturnReff and ReturnPassage.
 func isRange(s string) bool {
 	switch {
-	case len(strings.Split(s, ":")) < 5: //URN has to have reference to be a range
-		return false
-	case strings.Contains(strings.Split(s, ":")[4], "-"): //reference must contain a "-" indicating a range of URNs
-		return true
-	default:
-		return false
+	case len(strings.Split(s, ":")) < 5: //Test wether URN has reference..
+		return false //..else its not a range.
+	case strings.Contains(strings.Split(s, ":")[4], "-"): //The Reference must contain a hyphen ('-') indicating a range of URNs.
+		return true //Than it should be a range.
+	default: //In any other case..
+		return false //...its not a CTS URN range.
 	}
 }
 
-//Returns bool for whether length and structure of string indicate it is a valid URN. Called in Endpoint Handling Block.
+//Returns bool for whether length and structure of string s indicate it is a valid CTS URN. Called in Endpoint Handling Block.
 func isCTSURN(s string) bool {
-	log.Println("Testing wether \"" + s + "\" is a valid CTS URN")
+	clog.Info("Testing wether \"" + s + "\" is a valid CTS URN")
 	test := strings.Split(s, ":") //initializes string array by splitting string into functional parts.
 	switch {
 	case len(test) < 4: //URN has to have at least 4 parts
-		log.Println("Not a valid CTS URN: not enough fields. (Should be 4 or 5)")
+		clog.Warn("Not a valid CTS URN: not enough fields. (Should be 4 or 5)")
 		return false
 	case len(test) > 5: //URN may not have more thatn 5 parts.
-		log.Println("Not a valid CTS URN: too many fields. (Should be 4 or 5)")
+		clog.Warn("Not a valid CTS URN: too many fields. (Should be 4 or 5)")
 		return false
 	case test[0] != "urn": //First field of URN must be "urn"
-		log.Println("Not a valid CTS URN: first field must be urn")
+		clog.Warn("Not a valid CTS URN: first field must be urn")
 		return false
 	case test[1] != "cts": //Second field of URN must be "cts"
-		log.Println("Not a valid CTS URN: second field must be cts")
+		clog.Warn("Not a valid CTS URN: second field must be cts")
 		return false
 	default:
-		log.Println("CTS URN is valid")
+		clog.Info("CTS URN is valid")
 		return true
 	}
 }
 
-//Returns bool for wether bool is contained in bool slice.
+//Returns bool for wether bool e is contained in bool slice s.
 func boolcontains(s []bool, e bool) bool {
 	for _, a := range s {
 		if a == e {
@@ -215,17 +211,17 @@ func boolcontains(s []bool, e bool) bool {
 	return false
 }
 
-//Returns bool for wether string is contained in string slice on level 1 of the URN.
+//Returns bool for wether string e is contained in string slice s on level 1 of the URN.
 func level1contains(s []string, e string) bool {
-	var match []bool   //initialize match variable as bool array
-	for i := range s { //go through string array. if regex matches given string plus one level
+	var match []bool   //initialize bool array match
+	for i := range s { //go through string array. if regex matches string plus one level
 		match2, _ := regexp.MatchString((e + "([:|.]*[0-9|a-z]+)$"), s[i])
 		match = append(match, match2)
 	}
 	return boolcontains(match, true)
 }
 
-//Returns bool for wether string is contained in string slice on level 2 of the URN.
+//Returns bool for wether string e is contained in string slice s on level 2 of the URN.
 func level2contains(s []string, e string) bool {
 	var match []bool
 	for i := range s {
@@ -235,7 +231,7 @@ func level2contains(s []string, e string) bool {
 	return boolcontains(match, true)
 }
 
-//Returns bool for wether string is contained in string slice on level 3 of the URN.
+//Returns bool for wether string e is contained in string slice s on level 3 of the URN.
 func level3contains(s []string, e string) bool {
 	var match []bool
 	for i := range s {
@@ -245,7 +241,7 @@ func level3contains(s []string, e string) bool {
 	return boolcontains(match, true)
 }
 
-//Returns bool for wether string is contained in string slice on level 4 of the URN.
+//Returns bool for wether string e is contained in string slice s on level 4 of the URN.
 func level4contains(s []string, e string) bool {
 	var match []bool
 	for i := range s {
@@ -255,26 +251,26 @@ func level4contains(s []string, e string) bool {
 	return boolcontains(match, true)
 }
 
-//removeDuplicatesUnordered removes dublicate URNs. Returns a slice of all unique elements.
+//Removes dublicate URNs from elements. Returns a slice of all unique elements.
 func removeDuplicatesUnordered(elements []string) []string {
-	encountered := map[string]bool{}
-
+	encountered := map[string]bool{} //initalize bool map with string keys
 	// Create a map of all unique elements.
 	for v := range elements {
-		encountered[elements[v]] = true
+		encountered[elements[v]] = true //all elements are set to true
 	}
-
 	// Place all keys from the map into a slice.
 	result := []string{}
 	for key, _ := range encountered {
-		result = append(result, key)
+		result = append(result, key) //append every key to the slice
 	}
 	return result
 }
 
+//***Main Block***
+
 //Initializes mux server, loads configuration from config file, sets the serverIP, maps endpoints to respective funtions. Initialises the headers.
 func main() {
-	log.Println("Starting up local server.")
+	clog.Info("Starting up local server.")
 	confvar := LoadConfiguration("./config.json")
 	serverIP := confvar.Port
 	router := mux.NewRouter().StrictSlash(true)
@@ -303,37 +299,31 @@ func main() {
 	originsOk := handlers.AllowedOrigins([]string{os.Getenv("ORIGIN_ALLOWED")})
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
 
-	log.Println("Server is running")
-	log.Println("Listening at" + serverIP + "...")
+	clog.Info("Server is running")
+	clog.Info("Listening at" + serverIP + "...")
 	log.Fatal(http.ListenAndServe(serverIP, handlers.CORS(originsOk, headersOk, methodsOk)(router)))
 }
 
-//getContent gets the data from the given URL. Returns data as byte slice and nil if successfull, returns nil and error message in case of failure.
+//Fetches data from the url. Returns byte slice. Error handling implemented.
 func getContent(url string) ([]byte, error) {
-	//get response from server
-	resp, err := http.Get(url)
-	//return in case of GET error
+	resp, err := http.Get(url) //get response from server
 	if err != nil {
-		return nil, fmt.Errorf("GET error: %v", err)
+		return nil, fmt.Errorf("GET error: %v", err) //return in case of GET error
 	}
-	defer resp.Body.Close()
-	//return in case of http status error
+	defer resp.Body.Close() //return in case of http status error
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("Status error: %v", resp.StatusCode)
 	}
-	//reas response into byte slice
-	data, err := ioutil.ReadAll(resp.Body)
-	//return in case of read error
-	if err != nil {
+	data, err := ioutil.ReadAll(resp.Body) //read response into byte slice
+	if err != nil {                        //return in case of read error
 		return nil, fmt.Errorf("Read body: %v", err)
 	}
-	//return body data if success
 	return data, nil
 }
 
-//ReturnWorkURNS prints
+//ReturnWorkURNS returns the URNs as found in the #!ctsdata block of the CEX file
 func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturWorkURNS")
+	clog.Info("Called function: ReturWorkURNS")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -342,10 +332,10 @@ func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
+		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
 	}
 	result := ParseURNS(CTSParams{Sourcetext: sourcetext})
 	for i := range result.URN {
@@ -358,11 +348,12 @@ func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprintln(w, string(resultJSON))
-	log.Println("ReturWorkURNS executed succesfully")
+	clog.Info("ReturWorkURNS executed succesfully")
 }
 
-func ParseURNS(p CTSParams) URNResponse {
-	log.Println("Parsing URNS")
+
+func ParseURNS(p CTSParams) URNResponse { //suggestion: change name to ParseURNSFromCTSdata
+	clog.Info("Parsing URNS from #!ctsdata")
 	input_file := p.Sourcetext
 	data, err := getContent(input_file)
 	if err != nil {
@@ -393,13 +384,13 @@ func ParseURNS(p CTSParams) URNResponse {
 		response.URN = append(response.URN, line[0])
 	}
 	response.Status = "Success"
-	log.Println("URNS parsed succesfully")
+	clog.Info("URNS parsed succesfully")
 	return response
 }
 
 //ParseWork extracts the relevant data out of the Sourcetext.
 func ParseWork(p CTSParams) Work {
-	log.Println("Parsing work")
+	clog.Info("Parsing work")
 	input_file := p.Sourcetext          //get information out of Sourcetext  (string?)
 	data, err := getContent(input_file) //get data out of input_file
 	if err != nil {
@@ -430,16 +421,16 @@ func ParseWork(p CTSParams) Work {
 		response.URN = append(response.URN, line[0])   //add first field of []line to URNs
 		response.Text = append(response.Text, line[1]) //add seconf field of []line to Texts
 	}
-	log.Println("Work parsed succesfully")
+	clog.Info("Work parsed succesfully")
 	return response
 }
 
 func ParseCatalog(p CTSParams) Catalog {
-	log.Println("Parsing catalog")
+	clog.Info("Parsing catalog")
 	input_file := p.Sourcetext          //get information out of Sourcetext  (string?)
 	data, err := getContent(input_file) //get data out of input_file
 	if err != nil {
-		log.Println("Parsing Catalog failed. Returning empty catalog")
+		clog.Error("Parsing Catalog failed. Returning empty catalog")
 		log.Fatal(err)
 		return Catalog{} //return empty Catalog if loading data failed
 	}
@@ -450,7 +441,7 @@ func ParseCatalog(p CTSParams) Catalog {
 	str = strings.Split(str, "#!")[0]             // split at #! and take the first part in case there is any other funtional part
 	re := regexp.MustCompile("(?m)[\r\n]*^//.*$") //initialize regex to remove all newlines and carriage returns
 	str = re.ReplaceAllString(str, "")            //remove unnecessary characters
-	log.Println("String: " + str)
+//	log.Println("String: " + str)
 	reader := csv.NewReader(strings.NewReader(str)) //initialize csv reader with str
 	reader.Comma = '#'                              //set # as seperator; sits between URN and respective text
 	reader.LazyQuotes = true                        //check that
@@ -478,26 +469,26 @@ func ParseCatalog(p CTSParams) Catalog {
 			response.CatalogEntries = append(response.CatalogEntries, entry)
 		}
 	}
-	log.Println("Catalog parsed succesfully")
+	clog.Info("Catalog parsed succesfully")
 	return response
 }
 
 //Endpoint Handling Block: contains the handle functions that are executed according to the request.
 
 func ReturnCiteVersion(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturnCiteVersion")
+	clog.Info("Called function: ReturnCiteVersion")
 	var result CITEResponse
 	result = CITEResponse{Status: "Success",
 		Service:  "/cite",
 		Versions: Versions{Texts: "1.1.0", Textcatalog: ""}}
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnCiteVersion executed succesfully")
+	clog.Info("ReturnCiteVersion executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnTextsVersion(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturnTextsVersion")
+	clog.Info("Called function: ReturnTextsVersion")
 	var result VersionResponse
 	result = VersionResponse{
 		Status:  "Success",
@@ -505,12 +496,12 @@ func ReturnTextsVersion(w http.ResponseWriter, r *http.Request) {
 		Version: "1.1.0"}
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnTextsVersion executed succesfully")
+	clog.Info("ReturnTextsVersion executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnFirst(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturnFirst")
+	clog.Info("Called function: ReturnFirst")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -519,10 +510,10 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	//log.Println("Requested URN: " + requestURN)
@@ -533,7 +524,7 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		log.Println("ReturnLast executed succesfully")
+		clog.Info("ReturnLast executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -558,7 +549,7 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case workindex == 0:
 		message := "No results for " + requestURN
-		log.Println("Requested URN not in works. Returning exception message")
+		clog.Error("Requested URN not in works. Returning exception message")
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
 		var RequestedWork Work
@@ -582,12 +573,12 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/first"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnFirst executed succesfully")
+	clog.Info("ReturnFirst executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnLast(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturnLast")
+	clog.Info("Called function: ReturnLast")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -596,10 +587,10 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
@@ -609,7 +600,7 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		log.Println("ReturnLast executed succesfully")
+		clog.Info("ReturnLast executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -661,7 +652,7 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 }
 
 func ReturnPrev(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturnPrev")
+	clog.Info("Called function: ReturnPrev")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -670,10 +661,10 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
@@ -683,7 +674,7 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		log.Println("ReturnReff executed succesfully")
+		clog.Info("ReturnReff executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -757,11 +748,11 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprintln(w, string(resultJSON))
-	log.Println("ReturnPrev executed succesfully")
+	clog.Info("ReturnPrev executed succesfully")
 }
 
 func ReturnNext(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturnNext")
+	clog.Info("Called function: ReturnNext")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -770,10 +761,10 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
@@ -783,7 +774,7 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		log.Println("ReturnReff executed succesfully")
+		clog.Info("ReturnReff executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -856,12 +847,12 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/next"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnNext executed succesfully")
+	clog.Info("ReturnNext executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnReff(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturnReff")
+	clog.Info("Called function: ReturnReff")
 	confvar := LoadConfiguration("config.json") //load configuration from json file (ServerConfig)
 	vars := mux.Vars(r)                         //load vars from mux config to get CEX and URN information )[]string ?)
 	requestCEX := ""                            //initalize CEX variable (string)
@@ -870,10 +861,10 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 	switch {                                    //switch to determine wether a CEX file was specified
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex" //build URL to CEX file if CEX file was specified
-		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource //use TestSource as URL to CEX-file as found in config.json
-		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]         //safe requested URN
 	if isCTSURN(requestURN) != true { //test if given URN is valid (bool)
@@ -883,7 +874,7 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 		fmt.Fprintln(w, string(resultJSON))                                                             //output
-		log.Println("ReturnReff executed succesfully")
+		clog.Info("ReturnReff executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext}) //parse the work
@@ -1117,14 +1108,14 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 			resultJSON, _ := json.Marshal(result)                             //parse result to json format
 			w.Header().Set("Content-Type", "application/json; charset=utf-8") //set output format
 			fmt.Fprintln(w, string(resultJSON))                               //output
-			log.Println("ReturnReff executed succesfully")
+			clog.Info("ReturnReff executed succesfully")
 		}
 	}
 }
 
 //Returns a passage according to CEX file and URN specified
 func ReturnPassage(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturnPassage")
+	clog.Info("Called function: ReturnPassage")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -1133,10 +1124,10 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
@@ -1146,7 +1137,7 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		log.Println("ReturnPassage executed succesfully")
+		clog.Info("ReturnPassage executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -1446,24 +1437,24 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnPassage executed succesfully")
+	clog.Info("ReturnPassage executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturnCatalog")
+	clog.Info("Called function: ReturnCatalog")
 	confvar := LoadConfiguration("config.json") //load configuration from json file (ServerConfig)
 	vars := mux.Vars(r)                         //load vars from mux config to get CEX and URN information )[]string ?)
 	requestCEX := ""                            //initalize CEX variable (string)
 	requestCEX = vars["CEX"]                    //save CEX name in CEX variable
 	var sourcetext string                       //initialize sourcetext variable; will hold CEX data
 	switch {                                    //switch to determine wether a CEX file was specified
-	case requestCEX != "": 						//either {CEX}/catalog/ or /{CEX}/catalog/{URN}
+	case requestCEX != "": //either {CEX}/catalog/ or /{CEX}/catalog/{URN}
 		sourcetext = confvar.Source + requestCEX + ".cex" //build URL to CEX file if CEX file was specified
-		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource //use TestSource as URL to CEX-file as found in config.json instead
-		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
+		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
 	}
 
 	requestURN := ""         //initialize requestURN (string)
@@ -1481,10 +1472,10 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 			fmt.Fprintln(w, string(resultJSON))                                                             //output
-			log.Println("ReturnCatalog executed succesfully")
+			clog.Info("ReturnCatalog executed succesfully")
 			return
 		}
-	
+
 		catalogResult := ParseCatalog(CTSParams{Sourcetext: sourcetext}) //parse the catalog
 		//ToDo: check if catalogResult is empty --> Message + log
 		entries := catalogResult.CatalogEntries // get Catalog Entries ([]CatalogEntry)
@@ -1501,7 +1492,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			resultJSON, _ := json.Marshal(result)
 			w.Header().Set("Content-Type", "application/json; charset=utf-8") //set output format
 			fmt.Fprintln(w, string(resultJSON))                               //output
-			log.Println("ReturnCatalog executed succesfully")
+			clog.Info("ReturnCatalog executed succesfully")
 			return
 		default:
 			message := requestURN + " is not in the CTS Catalog. Printing URNs in catalog" //build message part of CatalogResponse
@@ -1510,7 +1501,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			resultJSON, _ := json.Marshal(result)                                          //parsing result to JSON format (_ would contain err)
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")              //set output format
 			fmt.Fprintln(w, string(resultJSON))                                            //output
-			log.Println("ReturnCatalog executed succesfully")
+			clog.Info("ReturnCatalog executed succesfully")
 			return
 		}
 	default:
@@ -1528,6 +1519,6 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)                                     //parsing result to JSON format (_ would contain err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")         //set output format
 		fmt.Fprintln(w, string(resultJSON))                                       //output
-		log.Println("ReturnCatalog executed succesfully")
+		clog.Info("ReturnCatalog executed succesfully")
 	}
 }

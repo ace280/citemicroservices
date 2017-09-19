@@ -20,7 +20,6 @@ import (
 )
 
 var clog = lumber.NewConsoleLogger(lumber.INFO)
-var 
 
 //***Type Defenition Block: defines necessary data structures***
 
