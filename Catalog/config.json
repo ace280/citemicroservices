@@ -1,8 +1,8 @@
 {
 "host": "localhost",
 "port": ":8080",
-"test_cex_source": "https://raw.githubusercontent.com/ThomasK81/CTSTextservice/master/cex/million.cex",
-"cex_source": "https://raw.githubusercontent.com/cite-architecture/cite-services-spec/master/texts/1.0/resources/"
+"test_cex_source": "https://raw.githubusercontent.com/cite-architecture/citedx/master/libraries/cite-test-huge.cex",
+"cex_source": "https://raw.githubusercontent.com/cite-architecture/citedx/master/libraries/cite-test-huge.cex"
 }
 
 //"test_cex_source": ./million.cex,
