@@ -2,7 +2,7 @@
 "host": "localhost",
 "port": ":8080",
 "test_cex_source": "https://raw.githubusercontent.com/cite-architecture/citedx/master/libraries/cite-test-huge.cex",
-"cex_source": "https://raw.githubusercontent.com/cite-architecture/citedx/master/libraries/cite-test-huge.cex"
+"cex_source": "https://raw.githubusercontent.com/cite-architecture/citedx/master/libraries/"
 }
 
 //"test_cex_source": ./million.cex,

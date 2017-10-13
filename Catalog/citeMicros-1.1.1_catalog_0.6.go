@@ -13,13 +13,13 @@ import (
 	"os"
 	"regexp"
 	"strings"
+//        "strconv"
 
 	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
-	"github.com/jcelliott/lumber"
+	"github.com/gorilla/mux"      
 )
 
-var clog = lumber.NewConsoleLogger(lumber.INFO)
+
 
 //***Type Defenition Block: defines necessary data structures***
 
@@ -74,7 +74,7 @@ type NodeResponse struct {
 	Nodes      []Node   `json:""`
 }
 
-//Stores URN response results, which are passed to ReturnWorkURNS for further processing, parsing to JSON format and displaying. Used in ParseSourceTextS.
+//Stores URN response results, which are passed to ReturnWorkURNS for further processing, parsing to JSON format and displaying. Used in ParseSourceText.
 type URNResponse struct {
 	requestURN []string `json:"requestURN"`
 	Status     string   `json:"status"`
@@ -180,23 +180,23 @@ func isRange(s string) bool {
 
 //Returns bool for whether length and structure of string s indicate it is a valid CTS URN. Called in Endpoint Handling Block.
 func isCTSURN(s string) bool {
-	clog.Info("Testing whether \"" + s + "\" is a valid CTS URN")
+	log.Println("Testing whether \"" + s + "\" is a valid CTS URN")
 	test := strings.Split(s, ":") //initializes string array by splitting string into functional parts.
 	switch {
 	case len(test) < 4: //URN has to have at least 4 parts
-		clog.Warn("Not a valid CTS URN: not enough fields. (Should be 4 or 5)")
+		log.Println("Not a valid CTS URN: not enough fields. (Should be 4 or 5)")
 		return false
 	case len(test) > 5: //URN may not have more thatn 5 parts.
-		clog.Warn("Not a valid CTS URN: too many fields. (Should be 4 or 5)")
+		log.Println("Not a valid CTS URN: too many fields. (Should be 4 or 5)")
 		return false
 	case test[0] != "urn": //First field of URN must be "urn"
-		clog.Warn("Not a valid CTS URN: first field must be urn")
+		log.Println("Not a valid CTS URN: first field must be urn")
 		return false
 	case test[1] != "cts": //Second field of URN must be "cts"
-		clog.Warn("Not a valid CTS URN: second field must be cts")
+		log.Println("Not a valid CTS URN: second field must be cts")
 		return false
 	default:
-		clog.Info("CTS URN is valid")
+		log.Println("CTS URN is valid")
 		return true
 	}
 }
@@ -270,7 +270,7 @@ func removeDuplicatesUnordered(elements []string) []string {
 
 //Initializes mux server, loads configuration from config file, sets the serverIP, maps endpoints to respective funtions. Initialises the headers.
 func main() {
-	clog.Info("Starting up local server.")
+	log.Println("Starting up local server.")
 	confvar := LoadConfiguration("./config.json")
 	serverIP := confvar.Port
 	router := mux.NewRouter().StrictSlash(true)
@@ -299,8 +299,8 @@ func main() {
 	originsOk := handlers.AllowedOrigins([]string{os.Getenv("ORIGIN_ALLOWED")})
 	methodsOk := handlers.AllowedMethods([]string{"GET", "HEAD", "POST", "PUT", "OPTIONS"})
 
-	clog.Info("Server is running")
-	clog.Info("Listening at" + serverIP + "...")
+	log.Println("Server is running")
+	log.Println("Listening at" + serverIP + "...")
 	log.Fatal(http.ListenAndServe(serverIP, handlers.CORS(originsOk, headersOk, methodsOk)(router)))
 }
 
@@ -323,7 +323,7 @@ func getContent(url string) ([]byte, error) {
 
 //ReturnWorkURNS returns the URNs as found in the #!ctsdata block of the CEX file
 func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturWorkURNS")
+	log.Println("Called function: ReturWorkURNS")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -332,12 +332,12 @@ func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
+		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
 	}
-	result := ParseSourceTextS(CTSParams{Sourcetext: sourcetext})
+	result := ParseSourceText(CTSParams{Sourcetext: sourcetext})
 	for i := range result.URN {
 		result.URN[i] = strings.Join(strings.Split(result.URN[i], ":")[0:4], ":")
 		result.URN[i] = result.URN[i] + ":"
@@ -348,12 +348,12 @@ func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprintln(w, string(resultJSON))
-	clog.Info("ReturWorkURNS executed succesfully")
+	log.Println("ReturWorkURNS executed succesfully")
 }
 
 
-func ParseSourceTextS(p CTSParams) URNResponse { //suggestion: change name to ParseSourceTextSFromCTSdata
-	clog.Info("Parsing URNS from #!ctsdata")
+func ParseSourceText(p CTSParams) URNResponse { //suggestion: change name to ParseSourceTextFromCTSdata
+	log.Println("Parsing URNS from #!ctsdata")
 	input_file := p.Sourcetext
 	data, err := getContent(input_file)
 	if err != nil {
@@ -384,13 +384,13 @@ func ParseSourceTextS(p CTSParams) URNResponse { //suggestion: change name to Pa
 		response.URN = append(response.URN, line[0])
 	}
 	response.Status = "Success"
-	clog.Info("URNS parsed succesfully")
+	log.Println("URNS parsed succesfully")
 	return response
 }
 
 //ParseWork extracts the relevant data out of the Sourcetext.
 func ParseWork(p CTSParams) Work {
-	clog.Info("Parsing work")
+	log.Println("Parsing work")
 	input_file := p.Sourcetext          //get information out of Sourcetext  (string?)
 	data, err := getContent(input_file) //get data out of input_file
 	if err != nil {
@@ -421,16 +421,16 @@ func ParseWork(p CTSParams) Work {
 		response.URN = append(response.URN, line[0])   //add first field of []line to URNs
 		response.Text = append(response.Text, line[1]) //add seconf field of []line to Texts
 	}
-	clog.Info("Work parsed succesfully")
+	log.Println("Work parsed succesfully")
 	return response
 }
 
 func ParseCatalog(p CTSParams) Catalog {
-	clog.Info("Parsing catalog")
+	log.Println("Parsing catalog")
 	input_file := p.Sourcetext          //get information out of Sourcetext  (string?)
 	data, err := getContent(input_file) //get data out of input_file
 	if err != nil {
-		clog.Error("Parsing Catalog failed. Returning empty catalog")
+		log.Println("Parsing Catalog failed. Returning empty catalog")
 		log.Fatal(err)
 		return Catalog{} //return empty Catalog if loading data failed
 	}
@@ -444,15 +444,29 @@ func ParseCatalog(p CTSParams) Catalog {
 //	log.Println("String: " + str)
 	reader := csv.NewReader(strings.NewReader(str)) //initialize csv reader with str
 	reader.Comma = '#'                              //set # as seperator; sits between URN and respective text
-	reader.LazyQuotes = true                        //check that
-	reader.FieldsPerRecord = 0                      //specifies that each read line will have as many fields as first line
+	reader.LazyQuotes = true 
+/*	reader.FieldsPerRecord = 0	
+	for {
+            line, error := reader.Read() //read every line with prepared reader ([]string)
+            if error == io.EOF {         //leave the loop if EOF is reached
+                break
+            } else if error != nil {
+                log.Fatal(error) //log error
+            }
+            if len(line) != 8 {
+                message := "CTS Catalog in CEX-file has to have 8 fields. This has " + strconv.Itoa(len(line)) + " fields. Please refer to the specification at https://github.com/cite-architecture/citedx."
+                URNResponse{Status: "Exception", Message: message}
+            }
+                
+        }*/
+	reader.FieldsPerRecord = 8                      //specifies that each read line will have as many fields as first line
 	var response Catalog                            //initialize return value (Catalog)
 	for {
 		line, error := reader.Read() //read every line with prepared reader ([]string)
-		if error == io.EOF {         //leave for loop it EOF is reached
+		if error == io.EOF {         //leave the loop if EOF is reached
 			break
 		} else if error != nil {
-			log.Fatal(error) //log error
+ 			log.Fatal(error) //log error
 		}
 		var entry CatalogEntry //initialize entry variable to add to Catalog
 		entry.URN = line[0]    //add fields of []line to respective fields of entry
@@ -462,33 +476,31 @@ func ParseCatalog(p CTSParams) Catalog {
 		entry.VersionLabel = line[4]
 		entry.ExemplarLabel = line[5]
 		entry.Online = line[6]
-		if reader.FieldsPerRecord == 8 { //This solution will not suffice...
-			entry.Lang = line[7]
-		}
+		entry.Lang = line[7]
 		if isCTSURN(entry.URN) {
 			response.CatalogEntries = append(response.CatalogEntries, entry)
 		}
 	}
-	clog.Info("Catalog parsed succesfully")
+	log.Println("Catalog parsed succesfully")
 	return response
 }
 
 //Endpoint Handling Block: contains the handle functions that are executed according to the request.
 
 func ReturnCiteVersion(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturnCiteVersion")
+	log.Println("Called function: ReturnCiteVersion")
 	var result CITEResponse
 	result = CITEResponse{Status: "Success",
 		Service:  "/cite",
 		Versions: Versions{Texts: "1.1.0", Textcatalog: ""}}
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	clog.Info("ReturnCiteVersion executed succesfully")
+	log.Println("ReturnCiteVersion executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnTextsVersion(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturnTextsVersion")
+	log.Println("Called function: ReturnTextsVersion")
 	var result VersionResponse
 	result = VersionResponse{
 		Status:  "Success",
@@ -496,12 +508,12 @@ func ReturnTextsVersion(w http.ResponseWriter, r *http.Request) {
 		Version: "1.1.0"}
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	clog.Info("ReturnTextsVersion executed succesfully")
+	log.Println("ReturnTextsVersion executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnFirst(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturnFirst")
+	log.Println("Called function: ReturnFirst")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -510,10 +522,10 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	//log.Println("Requested URN: " + requestURN)
@@ -524,7 +536,7 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		clog.Info("ReturnLast executed succesfully")
+		log.Println("ReturnLast executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -549,7 +561,7 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case workindex == 0:
 		message := "No results for " + requestURN
-		clog.Error("Requested URN not in works. Returning exception message")
+		log.Println("Requested URN not in works. Returning exception message")
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
 		var RequestedWork Work
@@ -573,12 +585,12 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/first"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	clog.Info("ReturnFirst executed succesfully")
+	log.Println("ReturnFirst executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnLast(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturnLast")
+	log.Println("Called function: ReturnLast")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -587,10 +599,10 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
@@ -600,7 +612,7 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		clog.Info("ReturnLast executed succesfully")
+		log.Println("ReturnLast executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -652,7 +664,7 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 }
 
 func ReturnPrev(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturnPrev")
+	log.Println("Called function: ReturnPrev")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -661,10 +673,10 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
@@ -674,7 +686,7 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		clog.Info("ReturnReff executed succesfully")
+		log.Println("ReturnReff executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -748,11 +760,11 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprintln(w, string(resultJSON))
-	clog.Info("ReturnPrev executed succesfully")
+	log.Println("ReturnPrev executed succesfully")
 }
 
 func ReturnNext(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturnNext")
+	log.Println("Called function: ReturnNext")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -761,10 +773,10 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
@@ -774,7 +786,7 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		clog.Info("ReturnReff executed succesfully")
+		log.Println("ReturnReff executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -847,12 +859,12 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/next"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	clog.Info("ReturnNext executed succesfully")
+	log.Println("ReturnNext executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnReff(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturnReff")
+	log.Println("Called function: ReturnReff")
 	confvar := LoadConfiguration("config.json") //load configuration from json file (ServerConfig)
 	vars := mux.Vars(r)                         //load vars from mux config to get CEX and URN information )[]string ?)
 	requestCEX := ""                            //initalize CEX variable (string)
@@ -861,10 +873,10 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 	switch {                                    //switch to determine whether a CEX file was specified
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex" //build URL to CEX file if CEX file was specified
-		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource //use TestSource as URL to CEX-file as found in config.json
-		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]         //safe requested URN
 	if isCTSURN(requestURN) != true { //test if given URN is valid (bool)
@@ -874,7 +886,7 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 		fmt.Fprintln(w, string(resultJSON))                                                             //output
-		clog.Info("ReturnReff executed succesfully")
+		log.Println("ReturnReff executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext}) //parse the work
@@ -1108,14 +1120,14 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 			resultJSON, _ := json.Marshal(result)                             //parse result to json format
 			w.Header().Set("Content-Type", "application/json; charset=utf-8") //set output format
 			fmt.Fprintln(w, string(resultJSON))                               //output
-			clog.Info("ReturnReff executed succesfully")
+			log.Println("ReturnReff executed succesfully")
 		}
 	}
 }
 
 //Returns a passage according to CEX file and URN specified
 func ReturnPassage(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturnPassage")
+	log.Println("Called function: ReturnPassage")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
 	requestCEX := ""
@@ -1124,10 +1136,10 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case requestCEX != "":
 		sourcetext = confvar.Source + requestCEX + ".cex"
-		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource
-		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
+		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
@@ -1137,7 +1149,7 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		clog.Info("ReturnPassage executed succesfully")
+		log.Println("ReturnPassage executed succesfully")
 		return
 	}
 	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
@@ -1437,12 +1449,12 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	clog.Info("ReturnPassage executed succesfully")
+	log.Println("ReturnPassage executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
 }
 
 func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
-	clog.Info("Called function: ReturnCatalog")
+	log.Println("Called function: ReturnCatalog")
 	confvar := LoadConfiguration("config.json") //load configuration from json file (ServerConfig)
 	vars := mux.Vars(r)                         //load vars from mux config to get CEX and URN information )[]string ?)
 	requestCEX := ""                            //initalize CEX variable (string)
@@ -1451,10 +1463,10 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 	switch {                                    //switch to determine whether a CEX file was specified
 	case requestCEX != "": //either {CEX}/catalog/ or /{CEX}/catalog/{URN}
 		sourcetext = confvar.Source + requestCEX + ".cex" //build URL to CEX file if CEX file was specified
-		clog.Info("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
+		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
 	default:
 		sourcetext = confvar.TestSource //use TestSource as URL to CEX-file as found in config.json instead
-		clog.Info("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
+		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
 	}
 
 	requestURN := ""         //initialize requestURN (string)
@@ -1472,7 +1484,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 			fmt.Fprintln(w, string(resultJSON))                                                             //output
-			clog.Info("ReturnCatalog executed succesfully")
+			log.Println("ReturnCatalog executed succesfully")
 			return
 		}
 
@@ -1492,7 +1504,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			resultJSON, _ := json.Marshal(result)
 			w.Header().Set("Content-Type", "application/json; charset=utf-8") //set output format
 			fmt.Fprintln(w, string(resultJSON))                               //output
-			clog.Info("ReturnCatalog executed succesfully")
+			log.Println("ReturnCatalog executed succesfully")
 			return
 		default:
 			message := requestURN + " is not in the CTS Catalog. Printing URNs in catalog" //build message part of CatalogResponse
@@ -1501,7 +1513,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			resultJSON, _ := json.Marshal(result)                                          //parsing result to JSON format (_ would contain err)
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")              //set output format
 			fmt.Fprintln(w, string(resultJSON))                                            //output
-			clog.Info("ReturnCatalog executed succesfully")
+			log.Println("ReturnCatalog executed succesfully")
 			return
 		}
 	default:
@@ -1519,6 +1531,6 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)                                     //parsing result to JSON format (_ would contain err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")         //set output format
 		fmt.Fprintln(w, string(resultJSON))                                       //output
-		clog.Info("ReturnCatalog executed succesfully")
+		log.Println("ReturnCatalog executed succesfully")
 	}
 }
