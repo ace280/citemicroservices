@@ -269,13 +269,12 @@ func removeDuplicatesUnordered(elements []string) []string {
 	return result
 }
 
-
 //***Main Block***
 
 //Initializes mux server, loads configuration from config file, sets the serverIP, maps endpoints to respective funtions. Initialises the headers.
 func main() {
 	log.Println("Starting up local server.")
-	confvar := LoadConfiguration("./config.json")
+	confvar := LoadConfiguration("./config.json")	
 	serverIP := confvar.Port
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/cite", ReturnCiteVersion)
@@ -323,14 +322,12 @@ func main() {
 		if err != nil {
 		fmt.Errorf("Could not open logfile %v", err)
 	}
-	defer openedLogFile.Close()
-	
+	defer openedLogFile.Close()	
+
 	log.Println("Logging to file: " + logFile)
 	log.SetOutput(openedLogFile)
 	
 	log.Fatal(http.ListenAndServe(serverIP, handlers.CORS(originsOk, headersOk, methodsOk)(router)))
-	
-
 }
 
 //Fetches data from the url. Returns byte slice. Error handling implemented.
@@ -457,11 +454,10 @@ func ParseWork(p CTSParams) Work {
 func ParseCatalog(p CTSParams) Catalog {
 	log.Println("Parsing catalog")
 	input_file := p.Sourcetext          //get information out of Sourcetext  (string?)
-	data, err := getContent(input_file) //get data out of input_file
-	if err != nil {
-		log.Println("Parsing Catalog failed. Returning empty catalog")
-		log.Fatal(err)
-		return Catalog{} //return empty Catalog if loading data failed
+	data, getContentError := getContent(input_file) //get data out of input_file
+	if getContentError != nil {
+		log.Println("Parsing Catalog failed.")
+		panic(getContentError)
 	}
 
 	str := string(data) //save data in str
@@ -491,11 +487,12 @@ func ParseCatalog(p CTSParams) Catalog {
 	reader.FieldsPerRecord = 8                      //specifies that each read line will have as many fields as first line
 	var response Catalog                            //initialize return value (Catalog)
 	for {
-		line, error := reader.Read() //read every line with prepared reader ([]string)
-		if error == io.EOF {         //leave the loop if EOF is reached
+		line, readError := reader.Read() //read every line with prepared reader ([]string)
+		if readError == io.EOF {         //leave the loop if EOF is reached
 			break
-		} else if error != nil {
- 			log.Fatal(error) //log error
+		} else if readError != nil {
+			//log.Fatal(error) //log error
+			panic(readError)
 		}
 		var entry CatalogEntry //initialize entry variable to add to Catalog
 		entry.URN = line[0]    //add fields of []line to respective fields of entry
@@ -1500,6 +1497,19 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 
 	requestURN := ""         //initialize requestURN (string)
 	requestURN = vars["URN"] //safe URN in variable
+	
+        defer func() {
+	if catalogError := recover(); catalogError != nil {
+            message := ("Error encountered. Please contact development team and send in current logfile!")                                                    //build message part of NodeResponse
+            result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
+            result.Service = "/catalog"                                                                     // adding Service part to result (NodeResponse)
+            resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
+            w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
+            fmt.Fprintln(w, string(resultJSON))   
+            log.Println("Error encountered: \"", catalogError, "\"")
+        
+		}
+    }()
 
 	switch {
 	case requestURN != "": //if the request URN was specified (not empty)
@@ -1516,7 +1526,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			log.Println("ReturnCatalog executed succesfully")
 			return
 		}
-
+		
 		catalogResult := ParseCatalog(CTSParams{Sourcetext: sourcetext}) //parse the catalog
 		//ToDo: check if catalogResult is empty --> Message + log
 		entries := catalogResult.CatalogEntries // get Catalog Entries ([]CatalogEntry)

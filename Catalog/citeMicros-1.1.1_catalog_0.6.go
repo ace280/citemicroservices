@@ -13,12 +13,15 @@ import (
 	"os"
 	"regexp"
 	"strings"
-//        "strconv"
+//	"bytes"
+	"time"
+	"path/filepath"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"      
 )
 
+//var logFileName string 
 
 
 //***Type Defenition Block: defines necessary data structures***
@@ -266,6 +269,7 @@ func removeDuplicatesUnordered(elements []string) []string {
 	return result
 }
 
+
 //***Main Block***
 
 //Initializes mux server, loads configuration from config file, sets the serverIP, maps endpoints to respective funtions. Initialises the headers.
@@ -301,6 +305,29 @@ func main() {
 
 	log.Println("Server is running")
 	log.Println("Listening at" + serverIP + "...")
+	
+	logFileName := (time.Now().Format("2006_01_02_15-04-05" + ".log"))
+	logFilePath:=("." + string(filepath.Separator)+ "logs" + string(filepath.Separator))
+	
+	if _, err := os.Stat(logFilePath); err != nil {
+		if os.IsNotExist(err) {
+			os.Mkdir(logFilePath, os.ModePerm)
+		} else {
+		fmt.Errorf("Error creating folder: " + logFilePath)
+		}
+	}
+	
+	logFile := (logFilePath + logFileName)
+	
+	openedLogFile, err := os.OpenFile(logFile, os.O_RDWR | os.O_CREATE  | os.O_APPEND, 0666)
+		if err != nil {
+		fmt.Errorf("Could not open logfile %v", err)
+	}
+	defer openedLogFile.Close()
+	
+	log.Println("Logging to file: " + logFile)
+	log.SetOutput(openedLogFile)
+	
 	log.Fatal(http.ListenAndServe(serverIP, handlers.CORS(originsOk, headersOk, methodsOk)(router)))
 }
 

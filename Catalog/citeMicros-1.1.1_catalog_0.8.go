@@ -13,16 +13,15 @@ import (
 	"os"
 	"regexp"
 	"strings"
-//	"bytes"
-	"time"
+	//	"bytes"
 	"path/filepath"
+	"time"
 
 	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"      
+	"github.com/gorilla/mux"
 )
 
-//var logFileName string 
-
+//var logFileName string
 
 //***Type Defenition Block: defines necessary data structures***
 
@@ -77,7 +76,7 @@ type NodeResponse struct {
 	Nodes      []Node   `json:""`
 }
 
-//Stores URN response results, which are passed to ReturnWorkURNS for further processing, parsing to JSON format and displaying. Used in ParseSourceText.
+//Stores URN response results, which are passed to ReturnWorkURNS for further processing, parsing to JSON format and displaying. Used in ParseURNSFromCTSdata.
 type URNResponse struct {
 	requestURN []string `json:"requestURN"`
 	Status     string   `json:"status"`
@@ -140,19 +139,19 @@ type ServerConfig struct {
 //***Helpfunction Block: These functions perform tasks that are necessary in multiple functions in the Endpoint Handling Block***
 
 //Splits CTS string s into its Stem and Reference. Returns CTSURN.
-func splitCTS(s string) CTSURN {
-	var result CTSURN                                                                                         //initialize result as CTSURN
-	result = CTSURN{Stem: strings.Join(strings.Split(s, ":")[0:4], ":"), Reference: strings.Split(s, ":")[4]} //first four parts go into the stem, last (fourth) part goes into reference
-	return result                                                                                             //returns as CTSURN
+func splitCTS(stringToBeSplit string) CTSURN {
+	var result CTSURN                                                                                                                     //initialize result as CTSURN
+	result = CTSURN{Stem: strings.Join(strings.Split(stringToBeSplit, ":")[0:4], ":"), Reference: strings.Split(stringToBeSplit, ":")[4]} //first four parts go into the stem, last (fourth) part goes into reference
+	return result                                                                                                                         //returns as CTSURN
 }
 
 //Loads and parses JSON file defined by string s. Returns ServerConfig.
 func LoadConfiguration(file string) ServerConfig {
-	var config ServerConfig          //initialize config as ServerConfig
+	var config ServerConfig                    //initialize config as ServerConfig
 	configFile, openFileError := os.Open(file) //attempt to open file
-	defer configFile.Close()         //push closing on call list
+	defer configFile.Close()                   //push closing on call list
 	if openFileError != nil {                  //error handling
-		fmt.Println(openFileError.Error())
+		fmt.Println("Open file error: " + openFileError.Error())
 	}
 	jsonParser := json.NewDecoder(configFile) //initialize jsonParser with configFile
 	jsonParser.Decode(&config)                //parse configFile to config
@@ -274,8 +273,8 @@ func removeDuplicatesUnordered(elements []string) []string {
 //Initializes mux server, loads configuration from config file, sets the serverIP, maps endpoints to respective funtions. Initialises the headers.
 func main() {
 	log.Println("Starting up local server.")
-	confvar := LoadConfiguration("./config.json")	
-	serverIP := confvar.Port
+	confvar := LoadConfiguration("./config.json")
+	serverIP := confvar.Port //should be called serverPort instead
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/cite", ReturnCiteVersion)
 	router.HandleFunc("/texts", ReturnWorkURNS)
@@ -304,29 +303,29 @@ func main() {
 
 	log.Println("Server is running")
 	log.Println("Listening at" + serverIP + "...")
-	
+
 	logFileName := (time.Now().Format("2006_01_02_15-04-05" + ".log"))
-	logFilePath:=("." + string(filepath.Separator)+ "logs" + string(filepath.Separator))
-	
+	logFilePath := ("." + string(filepath.Separator) + "logs" + string(filepath.Separator))
+
 	if _, err := os.Stat(logFilePath); err != nil {
 		if os.IsNotExist(err) {
 			os.Mkdir(logFilePath, os.ModePerm)
 		} else {
-		fmt.Errorf("Error creating folder: " + logFilePath)
+			fmt.Errorf("Error creating folder: " + logFilePath)
 		}
 	}
-	
+
 	logFile := (logFilePath + logFileName)
-	
-	openedLogFile, err := os.OpenFile(logFile, os.O_RDWR | os.O_CREATE  | os.O_APPEND, 0666)
-		if err != nil {
+
+	openedLogFile, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
 		fmt.Errorf("Could not open logfile %v", err)
 	}
-	defer openedLogFile.Close()	
+	defer openedLogFile.Close()
 
 	log.Println("Logging to file: " + logFile)
 	log.SetOutput(openedLogFile)
-	
+
 	log.Fatal(http.ListenAndServe(serverIP, handlers.CORS(originsOk, headersOk, methodsOk)(router)))
 }
 
@@ -349,45 +348,56 @@ func getContent(url string) ([]byte, error) {
 
 //ReturnWorkURNS returns the URNs as found in the #!ctsdata block of the CEX file
 func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
-	log.Println("Called function: ReturWorkURNS")
-	confvar := LoadConfiguration("config.json")
-	vars := mux.Vars(r)
+
+	defer func() {
+		if rwuError := recover(); rwuError != nil {
+			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
+			result.Service = "/catalog"                                                                    // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
+			fmt.Fprintln(w, string(resultJSON))
+			log.Println("Error encountered: \"", rwuError, "\"")
+		}
+	}()
+
+	log.Println("Called function: ReturWorkURNS") //log what function is doing
+	confvar := LoadConfiguration("config.json")   //load configuration from configfile
+	vars := mux.Vars(r)                           //load configuration from mux server
 	requestCEX := ""
-	requestCEX = vars["CEX"]
-	var sourcetext string
-	switch {
-	case requestCEX != "":
+	requestCEX = vars["CEX"] //set requestCEX variable to value from mux server
+	var sourcetext string    //create sourcetext variable
+	switch {                 //check where CEX file was specified
+	case requestCEX != "": //if specified in URL, use that file
 		sourcetext = confvar.Source + requestCEX + ".cex"
 		log.Println("CEX-file provided in URL: " + requestCEX + ". Using " + sourcetext + ".")
-	default:
+	default: //if not: use CEX file specified in configfile
 		sourcetext = confvar.TestSource
 		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
 	}
-	result := ParseSourceText(CTSParams{Sourcetext: sourcetext})
-	for i := range result.URN {
-		result.URN[i] = strings.Join(strings.Split(result.URN[i], ":")[0:4], ":")
-		result.URN[i] = result.URN[i] + ":"
+	urnResponse := ParseURNSFromCTSdata(CTSParams{Sourcetext: sourcetext})
+	for i := range urnResponse.URN {
+		urnResponse.URN[i] = strings.Join(strings.Split(urnResponse.URN[i], ":")[0:4], ":")
+		urnResponse.URN[i] = urnResponse.URN[i] + ":"
 	}
-	result.URN = removeDuplicatesUnordered(result.URN)
-	result.Service = "/texts"
-	result.requestURN = []string{}
-	resultJSON, _ := json.Marshal(result)
+	urnResponse.URN = removeDuplicatesUnordered(urnResponse.URN)
+	urnResponse.Service = "/texts"
+	urnResponse.requestURN = []string{} //creates empty string?
+	resultJSON, _ := json.Marshal(urnResponse)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	fmt.Fprintln(w, string(resultJSON))
 	log.Println("ReturWorkURNS executed succesfully")
 }
 
-
-func ParseSourceText(p CTSParams) URNResponse { //suggestion: change name to ParseSourceTextFromCTSdata
+func ParseURNSFromCTSdata(ctsParams CTSParams) URNResponse {
 	log.Println("Parsing URNS from #!ctsdata")
-	input_file := p.Sourcetext
+	input_file := ctsParams.Sourcetext
 	data, err := getContent(input_file)
 	if err != nil {
 		return URNResponse{Status: "Exception", Message: "Couldn't open connection."}
 	}
 
 	str := string(data)
-	// Remove comments
 	str = strings.Split(str, "#!ctsdata")[1]
 	str = strings.Split(str, "#!")[0]
 	re := regexp.MustCompile("(?m)[\r\n]*^//.*$")
@@ -398,20 +408,21 @@ func ParseSourceText(p CTSParams) URNResponse { //suggestion: change name to Par
 	reader.LazyQuotes = true
 	reader.FieldsPerRecord = 2
 
-	var response URNResponse
+	var urnResponse URNResponse
 
 	for {
-		line, error := reader.Read()
-		if error == io.EOF {
+		line, readError := reader.Read()
+		if readError == io.EOF {
 			break
-		} else if error != nil {
-			log.Fatal(error)
+		} else if readError != nil {
+                    panic(readError)
+			//log.Fatal(error)
 		}
-		response.URN = append(response.URN, line[0])
+		urnResponse.URN = append(urnResponse.URN, line[0])
 	}
-	response.Status = "Success"
+	urnResponse.Status = "Success"
 	log.Println("URNS parsed succesfully")
-	return response
+	return urnResponse
 }
 
 //ParseWork extracts the relevant data out of the Sourcetext.
@@ -453,7 +464,7 @@ func ParseWork(p CTSParams) Work {
 
 func ParseCatalog(p CTSParams) Catalog {
 	log.Println("Parsing catalog")
-	input_file := p.Sourcetext          //get information out of Sourcetext  (string?)
+	input_file := p.Sourcetext                      //get information out of Sourcetext  (string?)
 	data, getContentError := getContent(input_file) //get data out of input_file
 	if getContentError != nil {
 		log.Println("Parsing Catalog failed.")
@@ -466,26 +477,26 @@ func ParseCatalog(p CTSParams) Catalog {
 	str = strings.Split(str, "#!")[0]             // split at #! and take the first part in case there is any other funtional part
 	re := regexp.MustCompile("(?m)[\r\n]*^//.*$") //initialize regex to remove all newlines and carriage returns
 	str = re.ReplaceAllString(str, "")            //remove unnecessary characters
-//	log.Println("String: " + str)
+	//	log.Println("String: " + str)
 	reader := csv.NewReader(strings.NewReader(str)) //initialize csv reader with str
 	reader.Comma = '#'                              //set # as seperator; sits between URN and respective text
-	reader.LazyQuotes = true 
-/*	reader.FieldsPerRecord = 0	
-	for {
-            line, error := reader.Read() //read every line with prepared reader ([]string)
-            if error == io.EOF {         //leave the loop if EOF is reached
-                break
-            } else if error != nil {
-                log.Fatal(error) //log error
-            }
-            if len(line) != 8 {
-                message := "CTS Catalog in CEX-file has to have 8 fields. This has " + strconv.Itoa(len(line)) + " fields. Please refer to the specification at https://github.com/cite-architecture/citedx."
-                URNResponse{Status: "Exception", Message: message}
-            }
-                
-        }*/
-	reader.FieldsPerRecord = 8                      //specifies that each read line will have as many fields as first line
-	var response Catalog                            //initialize return value (Catalog)
+	reader.LazyQuotes = true
+	/*	reader.FieldsPerRecord = 0
+			for {
+		            line, error := reader.Read() //read every line with prepared reader ([]string)
+		            if error == io.EOF {         //leave the loop if EOF is reached
+		                break
+		            } else if error != nil {
+		                log.Fatal(error) //log error
+		            }
+		            if len(line) != 8 {
+		                message := "CTS Catalog in CEX-file has to have 8 fields. This has " + strconv.Itoa(len(line)) + " fields. Please refer to the specification at https://github.com/cite-architecture/citedx."
+		                URNResponse{Status: "Exception", Message: message}
+		            }
+
+		        }*/
+	reader.FieldsPerRecord = 8 //specifies that each read line will have as many fields as first line
+	var response Catalog       //initialize return value (Catalog)
 	for {
 		line, readError := reader.Read() //read every line with prepared reader ([]string)
 		if readError == io.EOF {         //leave the loop if EOF is reached
@@ -1497,19 +1508,19 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 
 	requestURN := ""         //initialize requestURN (string)
 	requestURN = vars["URN"] //safe URN in variable
-	
-        defer func() {
-	if catalogError := recover(); catalogError != nil {
-            message := ("Error encountered. Please contact development team and send in current logfile!")                                                    //build message part of NodeResponse
-            result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
-            result.Service = "/catalog"                                                                     // adding Service part to result (NodeResponse)
-            resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
-            w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
-            fmt.Fprintln(w, string(resultJSON))   
-            log.Println("Error encountered: \"", catalogError, "\"")
-        
+
+	defer func() {
+		if catalogError := recover(); catalogError != nil {
+			message := ("Error encountered. Please contact development team and send in current logfile!")  //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
+			result.Service = "/catalog"                                                                     // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
+			fmt.Fprintln(w, string(resultJSON))
+			log.Println("Error encountered: \"", catalogError, "\"")
+
 		}
-    }()
+	}()
 
 	switch {
 	case requestURN != "": //if the request URN was specified (not empty)
@@ -1526,7 +1537,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			log.Println("ReturnCatalog executed succesfully")
 			return
 		}
-		
+
 		catalogResult := ParseCatalog(CTSParams{Sourcetext: sourcetext}) //parse the catalog
 		//ToDo: check if catalogResult is empty --> Message + log
 		entries := catalogResult.CatalogEntries // get Catalog Entries ([]CatalogEntry)
