@@ -149,20 +149,20 @@ func splitCTS(s string) CTSURN {
 //Loads and parses JSON file defined by string s. Returns ServerConfig.
 func LoadConfiguration(file string) ServerConfig {
 	var config ServerConfig          //initialize config as ServerConfig
-	configFile, err := os.Open(file) //attempt to open file
+	configFile, openFileError := os.Open(file) //attempt to open file
 	defer configFile.Close()         //push closing on call list
-	if err != nil {                  //error handling
-		fmt.Println(err.Error())
+	if openFileError != nil {                  //error handling
+		fmt.Println(openFileError.Error())
 	}
 	jsonParser := json.NewDecoder(configFile) //initialize jsonParser with configFile
 	jsonParser.Decode(&config)                //parse configFile to config
 	return config                             //return ServerConfig config
 }
 
-//Returns boolf for whether string slice s contains string e.
-func contains(s []string, e string) bool {
-	for _, a := range s {
-		if a == e {
+//Returns bool for whether string slice stringSlice contains string e.
+func contains(stringSlice []string, testedString string) bool {
+	for _, currentString := range stringSlice {
+		if currentString == testedString {
 			return true
 		}
 	}
