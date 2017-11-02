@@ -6,4 +6,5 @@ Thumbs.db
 # Development files
 /logs
 /logss
-/Discarded\ Code.txt
+Discarded\ Code.txt
+config\ blueprint.json
