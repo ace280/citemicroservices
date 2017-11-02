@@ -3,3 +3,7 @@ Thumbs.db
 .DS_Store
 .RData
 .RHistory
+# Development files
+/logs
+/logss
+/Discarded\ Code.txt

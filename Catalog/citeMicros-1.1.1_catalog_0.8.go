@@ -421,7 +421,7 @@ func ParseURNSFromCTSdata(ctsParams CTSParams) URNResponse {
 		urnResponse.URN = append(urnResponse.URN, line[0])
 	}
 	urnResponse.Status = "Success"
-	log.Println("URNS parsed succesfully")// sdg
+	log.Println("URNS parsed succesfully")
 	return urnResponse
 }
 
