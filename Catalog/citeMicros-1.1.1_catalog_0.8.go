@@ -475,7 +475,7 @@ func ParseCatalog(ctsParams CTSParams) Catalog {
 
 //Endpoint Handling Block: contains the handle functions that are executed according to the request.
 
-//Returns cite version. (Hard coded. Isn't it 1.1.1 now?) 
+//Returns cite version. (Hard coded. Isn't it 1.1.1 now?)
 func ReturnCiteVersion(w http.ResponseWriter, r *http.Request) {
 	log.Println("Called function: ReturnCiteVersion")
 	var result CITEResponse
@@ -500,7 +500,7 @@ func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rwuError, "\"")
 			log.Println("ReturnWorkURNS executed with exeption")
-			// return //necessary?
+			return //necessary?
 		}
 	}()
 	log.Println("Called function: ReturWorkURNS") //log what function is doing
@@ -561,7 +561,7 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rfError, "\"")
 			log.Println("ReturnFirst executed with exeption")
-			// return //necessary?
+			return //necessary?
 		}
 	}()
 	log.Println("Called function: ReturnFirst")
@@ -611,7 +611,7 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	var result NodeResponse
 	switch {
 	case workindex == 0:
-            		log.Println("Requested URN not in ctsdata")
+		log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
@@ -656,7 +656,7 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rlError, "\"")
 			log.Println("ReturnLast executed with exeption")
-			// return //necessary?
+			return //necessary?
 		}
 	}()
 	log.Println("Called function: ReturnLast")
@@ -705,7 +705,7 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 	var result NodeResponse
 	switch {
 	case workindex == 0:
-            log.Println("Requested URN not in ctsdata")
+		log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
@@ -740,17 +740,17 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 
 //Returns previous entry of URN range corresponding to given URN.
 func ReturnPrev(w http.ResponseWriter, r *http.Request) {
-    	defer func() {
+	defer func() {
 		if rpError := recover(); rpError != nil {
 			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
 			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
-			result.Service = "/texts/previous"                                                                 // adding Service part to result (NodeResponse)
+			result.Service = "/texts/previous"                                                             // adding Service part to result (NodeResponse)
 			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rpError, "\"")
 			log.Println("ReturnPrev executed with exeption")
-			 return //necessary?
+			return //necessary?
 		}
 	}()
 	log.Println("Called function: ReturnPrev")
@@ -799,7 +799,7 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 	var result NodeResponse
 	switch {
 	case workindex == 0:
-            log.Println("Requested URN not in ctsdata")
+		log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
@@ -843,24 +843,24 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 			}
 		default:
 			message := "Could not find node to " + requestURN + " in source."
-                        log.Println("Requested URN not in ctsdata") //This is what it means, right?
+			log.Println("Requested URN not in ctsdata") //This is what it means, right?
 			result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 		}
 	}
 	result.Service = "/texts/previous"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-        	if result.Status == "Success" {
+	if result.Status == "Success" {
 		log.Println("ReturnPrev executed succesfully")
 	} else {
 		log.Println("ReturnPrev executed with exeption")
 	}
-		fmt.Fprintln(w, string(resultJSON))
+	fmt.Fprintln(w, string(resultJSON))
 }
 
 //Returns next entry of URN range corresponding to given URN.
 func ReturnNext(w http.ResponseWriter, r *http.Request) {
-        	defer func() {
+	defer func() {
 		if rnError := recover(); rnError != nil {
 			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
 			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
@@ -919,7 +919,7 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	var result NodeResponse
 	switch {
 	case workindex == 0:
-            log.Println("Requested URN not in ctsdata")
+		log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
@@ -969,7 +969,7 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/next"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-        	if result.Status == "Success" {
+	if result.Status == "Success" {
 		log.Println("ReturnNext executed succesfully")
 	} else {
 		log.Println("ReturnNext executed with exeption")
@@ -1000,7 +1000,7 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 		fmt.Fprintln(w, string(resultJSON))                                                             //output
-		log.Println("ReturnReff executed succesfully")
+		log.Println("ReturnReff executed with exeption")
 		return
 	}
 	workResult := ParseURNsAndTextsFromCTSdata(CTSParams{Sourcetext: sourcetext}) //parse the work
