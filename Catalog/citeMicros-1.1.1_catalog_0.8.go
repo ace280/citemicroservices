@@ -304,6 +304,7 @@ func main() {
 	log.Println("Server is running")
 	log.Println("Listening at" + serverIP + "...")
 
+	//Extra function for creating the log file?
 	logFileName := (time.Now().Format("2006_01_02_15-04-05" + ".log"))
 	logFilePath := ("." + string(filepath.Separator) + "logs" + string(filepath.Separator))
 
@@ -331,17 +332,17 @@ func main() {
 
 //Fetches data from the url. Returns byte slice. Error handling implemented.
 func getContent(url string) ([]byte, error) {
-	resp, err := http.Get(url) //get response from server
-	if err != nil {
-		return nil, fmt.Errorf("GET error: %v", err) //return in case of GET error
+	response, getError := http.Get(url) //get response from server
+	if getError != nil {
+		return nil, fmt.Errorf("GET error: %v", getError) //return in case of GET error
 	}
-	defer resp.Body.Close() //return in case of http status error
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Status error: %v", resp.StatusCode)
+	defer response.Body.Close() //return in case of http status error
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Status error: %v", response.StatusCode)
 	}
-	data, err := ioutil.ReadAll(resp.Body) //read response into byte slice
-	if err != nil {                        //return in case of read error
-		return nil, fmt.Errorf("Read body: %v", err)
+	data, getError := ioutil.ReadAll(response.Body) //read response into byte slice
+	if getError != nil {                            //return in case of read error
+		return nil, fmt.Errorf("Read body: %v", getError)
 	}
 	return data, nil
 }
@@ -484,8 +485,8 @@ func ReturnCiteVersion(w http.ResponseWriter, r *http.Request) {
 		Versions: Versions{Texts: "1.1.0", Textcatalog: ""}}
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnCiteVersion executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
+	log.Println("ReturnCiteVersion executed succesfully")
 }
 
 //Returns the URNs as found in the #!ctsdata block of the CEX file.
@@ -545,19 +546,20 @@ func ReturnTextsVersion(w http.ResponseWriter, r *http.Request) {
 		Version: "1.1.0"}
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnTextsVersion executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
+	log.Println("ReturnTextsVersion executed succesfully")
 }
 
 //Returns first entry of URN range corresponding to given URN.
 func ReturnFirst(w http.ResponseWriter, r *http.Request) {
-	defer func() { //Recover fuction for error handling
+	requestURN := "" // initalize requestURN (string)
+	defer func() {   //Recover fuction for error handling
 		if rfError := recover(); rfError != nil {
-			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
-			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
-			result.Service = "/texts/first"                                                                // adding Service part to result (NodeResponse)
-			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
+			message := ("Error encountered. Please contact development team and send in current logfile!")  //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
+			result.Service = "/texts/first"                                                                 // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rfError, "\"")
 			log.Println("ReturnFirst executed with exeption")
@@ -567,8 +569,8 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	log.Println("Called function: ReturnFirst")
 	confvar := LoadConfiguration("config.json") //load variables from config file
 	vars := mux.Vars(r)                         //load variable from mux server
-	requestCEX := ""                            //initalizerequestCEX variable (why?)
-	requestCEX = vars["CEX"]                    //
+	requestCEX := ""
+	requestCEX = vars["CEX"] //
 	var sourcetext string
 	switch {
 	case requestCEX != "":
@@ -578,7 +580,7 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 		sourcetext = confvar.TestSource
 		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
-	requestURN := vars["URN"]
+	requestURN = vars["URN"]
 	//log.Println("Requested URN: " + requestURN)
 	if isCTSURN(requestURN) != true {
 		message := requestURN + " is not a valid CTS URN."
@@ -636,23 +638,25 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/first"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintln(w, string(resultJSON))
 	if result.Status == "Success" {
 		log.Println("ReturnFirst executed succesfully")
 	} else {
 		log.Println("ReturnFirst executed with exeption")
 	}
-	fmt.Fprintln(w, string(resultJSON))
+
 }
 
 //Returns last entry of URN range corresponding to given URN.
 func ReturnLast(w http.ResponseWriter, r *http.Request) {
+	requestURN := "" //initialize requestURN (string)
 	defer func() {
 		if rlError := recover(); rlError != nil {
-			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
-			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
-			result.Service = "/texts/last"                                                                 // adding Service part to result (NodeResponse)
-			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
+			message := ("Error encountered. Please contact development team and send in current logfile!")  //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
+			result.Service = "/texts/last"                                                                  // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rlError, "\"")
 			log.Println("ReturnLast executed with exeption")
@@ -673,7 +677,7 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 		sourcetext = confvar.TestSource
 		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
-	requestURN := vars["URN"]
+	requestURN = vars["URN"]
 	if isCTSURN(requestURN) != true { //test for valid URN
 		message := requestURN + " is not a valid CTS URN."
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
@@ -730,23 +734,25 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/last"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintln(w, string(resultJSON))
 	if result.Status == "Success" {
 		log.Println("ReturnLast executed succesfully")
 	} else {
 		log.Println("ReturnLast executed with exeption")
 	}
-	fmt.Fprintln(w, string(resultJSON))
+
 }
 
 //Returns previous entry of URN range corresponding to given URN.
 func ReturnPrev(w http.ResponseWriter, r *http.Request) {
+	requestURN := "" //initialize requestURN (string)
 	defer func() {
 		if rpError := recover(); rpError != nil {
-			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
-			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
-			result.Service = "/texts/previous"                                                             // adding Service part to result (NodeResponse)
-			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
+			message := ("Error encountered. Please contact development team and send in current logfile!")  //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
+			result.Service = "/texts/previous"                                                              // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rpError, "\"")
 			log.Println("ReturnPrev executed with exeption")
@@ -767,7 +773,7 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 		sourcetext = confvar.TestSource
 		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
-	requestURN := vars["URN"]
+	requestURN = vars["URN"]
 	if isCTSURN(requestURN) != true {
 		message := requestURN + " is not a valid CTS URN."
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
@@ -850,23 +856,24 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/previous"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	fmt.Fprintln(w, string(resultJSON))
 	if result.Status == "Success" {
 		log.Println("ReturnPrev executed succesfully")
 	} else {
 		log.Println("ReturnPrev executed with exeption")
 	}
-	fmt.Fprintln(w, string(resultJSON))
 }
 
 //Returns next entry of URN range corresponding to given URN.
 func ReturnNext(w http.ResponseWriter, r *http.Request) {
+	requestURN := "" //initialize requestURN (string)
 	defer func() {
 		if rnError := recover(); rnError != nil {
-			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
-			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
-			result.Service = "/texts/next"                                                                 // adding Service part to result (NodeResponse)
-			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
+			message := ("Error encountered. Please contact development team and send in current logfile!")  //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
+			result.Service = "/texts/next"                                                                  // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rnError, "\"")
 			log.Println("ReturnNext executed with exeption")
@@ -887,7 +894,7 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 		sourcetext = confvar.TestSource
 		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
-	requestURN := vars["URN"]
+	requestURN = vars["URN"]
 	if isCTSURN(requestURN) != true {
 		message := requestURN + " is not a valid CTS URN."
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
@@ -977,7 +984,21 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, string(resultJSON))
 }
 
+//Returns all (Sub-)URNs that belong to given URN from #!ctsdata.
 func ReturnReff(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if rrError := recover(); rrError != nil {
+			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
+			result.Service = "/texts/urns"                                                                 // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
+			fmt.Fprintln(w, string(resultJSON))
+			log.Println("Error encountered: \"", rrError, "\"")
+			log.Println("ReturnReff executed with exeption")
+			// return //necessary?
+		}
+	}()
 	log.Println("Called function: ReturnReff")
 	confvar := LoadConfiguration("config.json") //load configuration from json file (ServerConfig)
 	vars := mux.Vars(r)                         //load vars from mux config to get CEX and URN information )[]string ?)
@@ -1024,6 +1045,7 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 	var result URNResponse //initialize result (URNResponse)
 	switch {
 	case workindex == 0: //if requested URN is not among URNs in works prepare and display message accordingly
+		log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
 		result = URNResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 		result.Service = "/texts/urns"
@@ -1234,13 +1256,31 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 			resultJSON, _ := json.Marshal(result)                             //parse result to json format
 			w.Header().Set("Content-Type", "application/json; charset=utf-8") //set output format
 			fmt.Fprintln(w, string(resultJSON))                               //output
-			log.Println("ReturnReff executed succesfully")
+			if result.Status == "Success" {
+				log.Println("ReturnReff executed succesfully")
+			} else {
+				log.Println("ReturnReff executed with exeption")
+			}
+
 		}
 	}
 }
 
-//Returns a passage according to CEX file and URN specified
+//Returns a passage from #!ctsdata according to URN specified
 func ReturnPassage(w http.ResponseWriter, r *http.Request) {
+	requestURN := "" //initialize requestURN (string)
+	defer func() {
+		if rpError := recover(); rpError != nil {
+			message := ("Error encountered. Please contact development team and send in current logfile!")  //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
+			result.Service = "/texts/urns"                                                                  // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
+			fmt.Fprintln(w, string(resultJSON))
+			log.Println("Error encountered: \"", rpError, "\"")
+			log.Println("ReturnCatalog executed with exeption")
+		}
+	}()
 	log.Println("Called function: ReturnPassage")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
@@ -1255,7 +1295,7 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 		sourcetext = confvar.TestSource
 		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
-	requestURN := vars["URN"]
+	requestURN = vars["URN"]
 	if isCTSURN(requestURN) != true {
 		message := requestURN + " is not a valid CTS URN."
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
@@ -1263,7 +1303,7 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		log.Println("ReturnPassage executed succesfully")
+		log.Println("ReturnPassage executed with exeption")
 		return
 	}
 	workResult := ParseURNsAndTextsFromCTSdata(CTSParams{Sourcetext: sourcetext})
@@ -1287,6 +1327,7 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 	var result NodeResponse
 	switch {
 	case workindex == 0:
+		log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
@@ -1563,11 +1604,28 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnPassage executed succesfully")
 	fmt.Fprintln(w, string(resultJSON))
+	if result.Status == "Success" {
+		log.Println("ReturnPassage executed succesfully")
+	} else {
+		log.Println("ReturnPassage executed with exeption")
+	}
 }
 
 func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
+	requestURN := "" //initialize requestURN (string)
+	defer func() {
+		if rcError := recover(); rcError != nil {
+			message := ("Error encountered. Please contact development team and send in current logfile!")  //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
+			result.Service = "/catalog"                                                                     // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
+			fmt.Fprintln(w, string(resultJSON))
+			log.Println("Error encountered: \"", rcError, "\"")
+			log.Println("ReturnCatalog executed with exeption")
+		}
+	}()
 	log.Println("Called function: ReturnCatalog")
 	confvar := LoadConfiguration("config.json") //load configuration from json file (ServerConfig)
 	vars := mux.Vars(r)                         //load vars from mux config to get CEX and URN information ([]string ?)
@@ -1582,30 +1640,12 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 		sourcetext = confvar.TestSource //use TestSource as URL to CEX-file as found in config.json instead
 		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from congfig instead.")
 	}
-
-	requestURN := ""         //initialize requestURN (string)
 	requestURN = vars["URN"] //safe URN in variable
-
-	defer func() {
-		if catalogError := recover(); catalogError != nil {
-			message := ("Error encountered. Please contact development team and send in current logfile!")  //build message part of NodeResponse
-			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
-			result.Service = "/catalog"                                                                     // adding Service part to result (NodeResponse)
-			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
-			fmt.Fprintln(w, string(resultJSON))
-			log.Println("Error encountered: \"", catalogError, "\"")
-			log.Println("ReturnCatalog executed with exeption")
-
-		}
-	}()
-
 	switch {
 	case requestURN != "": //if the request URN was specified (not empty)
 		requestURN = strings.Join(strings.Split(requestURN, ":")[0:4], ":") //crop URN to first 4 parts (passage not needed for catalog
 		requestURN = (requestURN + ":")                                     //add ":" in the end to match appearance in catalog.
-
-		if isCTSURN(requestURN) != true { //test if given URN is valid (bool), if not give an error message
+		if isCTSURN(requestURN) != true {                                   //test if given URN is valid (bool), if not give an error message
 			message := requestURN + " is not a valid CTS URN."                                              //build message part of NodeResponse
 			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
 			result.Service = "/catalog"                                                                     // adding Service part to result (NodeResponse)
@@ -1615,7 +1655,6 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			log.Println("ReturnCatalog executed succesfully")
 			return
 		}
-
 		catalogResult := ParseCatalog(CTSParams{Sourcetext: sourcetext}) //parse the catalog
 		//ToDo: check if catalogResult is empty --> Message + log
 		entries := catalogResult.CatalogEntries // get Catalog Entries ([]CatalogEntry)
