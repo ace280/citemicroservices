@@ -93,7 +93,7 @@ type CatalogResponse struct {
 	URN     []string `json:"urns"`
 }
 
-//Stores work information for transfer to other functions. Used in ParseWork and the Endpoint Handling Block.
+//Stores work information for transfer to other functions. Used in ParseURNsAndTextsFromCTSdata and the Endpoint Handling Block.
 type Work struct {
 	WorkURN string
 	URN     []string
@@ -388,7 +388,7 @@ func ParseURNSFromCTSdata(ctsParams CTSParams) URNResponse {
 }
 
 //Extracts URN and corresponding text out of the Sourcetext. Returns Work. Called by ReturnFirst, ReturnLast, ReturnPrev, ReturnReff, ReturnPassage.
-func ParseWork(ctsParams CTSParams) Work {
+func ParseURNsAndTextsFromCTSdata(ctsParams CTSParams) Work {
 	log.Println("Parsing work")
 	//input_file := ctsParams.Sourcetext          //get filename out of Sourcetext  (string?)
 	//data, err := getContent(input_file) //get data out of input_file
@@ -426,6 +426,7 @@ func ParseWork(ctsParams CTSParams) Work {
 	return response
 }
 
+//Parses catalog. Returns Catalog. Called by ReturnCatalog.
 func ParseCatalog(ctsParams CTSParams) Catalog {
 	log.Println("Parsing catalog")
 	input_file := ctsParams.Sourcetext              //get information out of Sourcetext  (string?)
@@ -474,6 +475,7 @@ func ParseCatalog(ctsParams CTSParams) Catalog {
 
 //Endpoint Handling Block: contains the handle functions that are executed according to the request.
 
+//Returns cite version. (Hard coded. Isn't it 1.1.1 now?) 
 func ReturnCiteVersion(w http.ResponseWriter, r *http.Request) {
 	log.Println("Called function: ReturnCiteVersion")
 	var result CITEResponse
@@ -486,9 +488,9 @@ func ReturnCiteVersion(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, string(resultJSON))
 }
 
-//ReturnWorkURNS returns the URNs as found in the #!ctsdata block of the CEX file
+//Returns the URNs as found in the #!ctsdata block of the CEX file.
 func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
-	defer func() {
+	defer func() { //Recover fuction for error handling
 		if rwuError := recover(); rwuError != nil {
 			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
 			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
@@ -497,10 +499,10 @@ func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rwuError, "\"")
+			log.Println("ReturnWorkURNS executed with exeption")
 			// return //necessary?
 		}
 	}()
-
 	log.Println("Called function: ReturWorkURNS") //log what function is doing
 	confvar := LoadConfiguration("config.json")   //load configuration from configfile
 	vars := mux.Vars(r)                           //load configuration from mux server
@@ -533,6 +535,7 @@ func ReturnWorkURNS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//Returns Texts Version. (Hard coded. Isn't it 1.1.1 now?)
 func ReturnTextsVersion(w http.ResponseWriter, r *http.Request) {
 	log.Println("Called function: ReturnTextsVersion")
 	var result VersionResponse
@@ -546,9 +549,9 @@ func ReturnTextsVersion(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, string(resultJSON))
 }
 
+//Returns first entry of URN range corresponding to given URN.
 func ReturnFirst(w http.ResponseWriter, r *http.Request) {
-
-	defer func() {
+	defer func() { //Recover fuction for error handling
 		if rfError := recover(); rfError != nil {
 			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
 			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
@@ -557,14 +560,15 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", rfError, "\"")
+			log.Println("ReturnFirst executed with exeption")
 			// return //necessary?
 		}
 	}()
 	log.Println("Called function: ReturnFirst")
-	confvar := LoadConfiguration("config.json")
-	vars := mux.Vars(r)
-	requestCEX := ""
-	requestCEX = vars["CEX"]
+	confvar := LoadConfiguration("config.json") //load variables from config file
+	vars := mux.Vars(r)                         //load variable from mux server
+	requestCEX := ""                            //initalizerequestCEX variable (why?)
+	requestCEX = vars["CEX"]                    //
 	var sourcetext string
 	switch {
 	case requestCEX != "":
@@ -577,7 +581,7 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	requestURN := vars["URN"]
 	//log.Println("Requested URN: " + requestURN)
 	if isCTSURN(requestURN) != true {
-		message := requestURN + " is not valid CTS."
+		message := requestURN + " is not a valid CTS URN."
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 		result.Service = "/texts/first"
 		resultJSON, _ := json.Marshal(result)
@@ -586,7 +590,7 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 		log.Println("ReturnFirst executed with exeption")
 		return
 	}
-	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
+	workResult := ParseURNsAndTextsFromCTSdata(CTSParams{Sourcetext: sourcetext})
 	works := append([]string(nil), workResult.URN...)
 	for i := range workResult.URN {
 		works[i] = strings.Join(strings.Split(workResult.URN[i], ":")[0:4], ":")
@@ -607,8 +611,8 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	var result NodeResponse
 	switch {
 	case workindex == 0:
+            		log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
-		log.Println("Requested URN not in works. Returning exception message")
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
 		var RequestedWork Work
@@ -632,11 +636,29 @@ func ReturnFirst(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/first"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnFirst executed succesfully")
+	if result.Status == "Success" {
+		log.Println("ReturnFirst executed succesfully")
+	} else {
+		log.Println("ReturnFirst executed with exeption")
+	}
 	fmt.Fprintln(w, string(resultJSON))
 }
 
+//Returns last entry of URN range corresponding to given URN.
 func ReturnLast(w http.ResponseWriter, r *http.Request) {
+	defer func() {
+		if rlError := recover(); rlError != nil {
+			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
+			result.Service = "/texts/last"                                                                 // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
+			fmt.Fprintln(w, string(resultJSON))
+			log.Println("Error encountered: \"", rlError, "\"")
+			log.Println("ReturnLast executed with exeption")
+			// return //necessary?
+		}
+	}()
 	log.Println("Called function: ReturnLast")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
@@ -652,17 +674,17 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 		log.Println("No CEX-file provided in URL. Using " + confvar.TestSource + " from config instead.")
 	}
 	requestURN := vars["URN"]
-	if isCTSURN(requestURN) != true {
-		message := requestURN + " is not valid CTS."
+	if isCTSURN(requestURN) != true { //test for valid URN
+		message := requestURN + " is not a valid CTS URN."
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 		result.Service = "/texts/last"
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		log.Println("ReturnLast executed succesfully")
+		log.Println("ReturnLast executed with exception")
 		return
 	}
-	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
+	workResult := ParseURNsAndTextsFromCTSdata(CTSParams{Sourcetext: sourcetext})
 	works := append([]string(nil), workResult.URN...)
 	for i := range workResult.URN {
 		works[i] = strings.Join(strings.Split(workResult.URN[i], ":")[0:4], ":")
@@ -683,6 +705,7 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 	var result NodeResponse
 	switch {
 	case workindex == 0:
+            log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
@@ -707,10 +730,29 @@ func ReturnLast(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/last"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if result.Status == "Success" {
+		log.Println("ReturnLast executed succesfully")
+	} else {
+		log.Println("ReturnLast executed with exeption")
+	}
 	fmt.Fprintln(w, string(resultJSON))
 }
 
+//Returns previous entry of URN range corresponding to given URN.
 func ReturnPrev(w http.ResponseWriter, r *http.Request) {
+    	defer func() {
+		if rpError := recover(); rpError != nil {
+			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
+			result.Service = "/texts/previous"                                                                 // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
+			fmt.Fprintln(w, string(resultJSON))
+			log.Println("Error encountered: \"", rpError, "\"")
+			log.Println("ReturnPrev executed with exeption")
+			 return //necessary?
+		}
+	}()
 	log.Println("Called function: ReturnPrev")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
@@ -727,16 +769,16 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
-		message := requestURN + " is not valid CTS."
+		message := requestURN + " is not a valid CTS URN."
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 		result.Service = "/texts/previous"
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		log.Println("ReturnReff executed succesfully")
+		log.Println("ReturnPrev executed with exeption")
 		return
 	}
-	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
+	workResult := ParseURNsAndTextsFromCTSdata(CTSParams{Sourcetext: sourcetext})
 	works := append([]string(nil), workResult.URN...)
 	for i := range workResult.URN {
 		works[i] = strings.Join(strings.Split(workResult.URN[i], ":")[0:4], ":")
@@ -757,6 +799,7 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 	var result NodeResponse
 	switch {
 	case workindex == 0:
+            log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
@@ -800,17 +843,36 @@ func ReturnPrev(w http.ResponseWriter, r *http.Request) {
 			}
 		default:
 			message := "Could not find node to " + requestURN + " in source."
+                        log.Println("Requested URN not in ctsdata") //This is what it means, right?
 			result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 		}
 	}
 	result.Service = "/texts/previous"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	fmt.Fprintln(w, string(resultJSON))
-	log.Println("ReturnPrev executed succesfully")
+        	if result.Status == "Success" {
+		log.Println("ReturnPrev executed succesfully")
+	} else {
+		log.Println("ReturnPrev executed with exeption")
+	}
+		fmt.Fprintln(w, string(resultJSON))
 }
 
+//Returns next entry of URN range corresponding to given URN.
 func ReturnNext(w http.ResponseWriter, r *http.Request) {
+        	defer func() {
+		if rnError := recover(); rnError != nil {
+			message := ("Error encountered. Please contact development team and send in current logfile!") //build message part of NodeResponse
+			result := NodeResponse{requestURN: []string{}, Status: "Exception", Message: message}          //building result (NodeResponse)
+			result.Service = "/texts/next"                                                                 // adding Service part to result (NodeResponse)
+			resultJSON, _ := json.Marshal(result)                                                          //parsing result to JSON format
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")                              //set output format
+			fmt.Fprintln(w, string(resultJSON))
+			log.Println("Error encountered: \"", rnError, "\"")
+			log.Println("ReturnNext executed with exeption")
+			// return //necessary?
+		}
+	}()
 	log.Println("Called function: ReturnNext")
 	confvar := LoadConfiguration("config.json")
 	vars := mux.Vars(r)
@@ -827,16 +889,16 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
-		message := requestURN + " is not valid CTS."
+		message := requestURN + " is not a valid CTS URN."
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 		result.Service = "/texts/next"
 		resultJSON, _ := json.Marshal(result)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		fmt.Fprintln(w, string(resultJSON))
-		log.Println("ReturnReff executed succesfully")
+		log.Println("ReturnNext executed with exception")
 		return
 	}
-	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
+	workResult := ParseURNsAndTextsFromCTSdata(CTSParams{Sourcetext: sourcetext})
 	works := append([]string(nil), workResult.URN...)
 	for i := range workResult.URN {
 		works[i] = strings.Join(strings.Split(workResult.URN[i], ":")[0:4], ":")
@@ -857,6 +919,7 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	var result NodeResponse
 	switch {
 	case workindex == 0:
+            log.Println("Requested URN not in ctsdata")
 		message := "No results for " + requestURN
 		result = NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 	default:
@@ -906,7 +969,11 @@ func ReturnNext(w http.ResponseWriter, r *http.Request) {
 	result.Service = "/texts/next"
 	resultJSON, _ := json.Marshal(result)
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	log.Println("ReturnNext executed succesfully")
+        	if result.Status == "Success" {
+		log.Println("ReturnNext executed succesfully")
+	} else {
+		log.Println("ReturnNext executed with exeption")
+	}
 	fmt.Fprintln(w, string(resultJSON))
 }
 
@@ -927,7 +994,7 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 	}
 	requestURN := vars["URN"]         //safe requested URN
 	if isCTSURN(requestURN) != true { //test if given URN is valid (bool)
-		message := requestURN + " is not valid CTS."                                                    //build message part of NodeResponse
+		message := requestURN + " is not a valid CTS URN."                                              //build message part of NodeResponse
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
 		result.Service = "/texts/urns"                                                                  // adding Service part to result (NodeResponse)
 		resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
@@ -936,8 +1003,8 @@ func ReturnReff(w http.ResponseWriter, r *http.Request) {
 		log.Println("ReturnReff executed succesfully")
 		return
 	}
-	workResult := ParseWork(CTSParams{Sourcetext: sourcetext}) //parse the work
-	works := append([]string(nil), workResult.URN...)          // append URNs from workResult to works
+	workResult := ParseURNsAndTextsFromCTSdata(CTSParams{Sourcetext: sourcetext}) //parse the work
+	works := append([]string(nil), workResult.URN...)                             // append URNs from workResult to works
 	for i := range workResult.URN {
 		works[i] = strings.Join(strings.Split(workResult.URN[i], ":")[0:4], ":") //crop URNs in []work to first four parts of URN
 	}
@@ -1190,7 +1257,7 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 	}
 	requestURN := vars["URN"]
 	if isCTSURN(requestURN) != true {
-		message := requestURN + " is not valid CTS."
+		message := requestURN + " is not a valid CTS URN."
 		result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message}
 		result.Service = "/texts"
 		resultJSON, _ := json.Marshal(result)
@@ -1199,7 +1266,7 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 		log.Println("ReturnPassage executed succesfully")
 		return
 	}
-	workResult := ParseWork(CTSParams{Sourcetext: sourcetext})
+	workResult := ParseURNsAndTextsFromCTSdata(CTSParams{Sourcetext: sourcetext})
 	works := append([]string(nil), workResult.URN...)
 	for i := range workResult.URN {
 		works[i] = strings.Join(strings.Split(workResult.URN[i], ":")[0:4], ":")
@@ -1503,7 +1570,7 @@ func ReturnPassage(w http.ResponseWriter, r *http.Request) {
 func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 	log.Println("Called function: ReturnCatalog")
 	confvar := LoadConfiguration("config.json") //load configuration from json file (ServerConfig)
-	vars := mux.Vars(r)                         //load vars from mux config to get CEX and URN information )[]string ?)
+	vars := mux.Vars(r)                         //load vars from mux config to get CEX and URN information ([]string ?)
 	requestCEX := ""                            //initalize CEX variable (string)
 	requestCEX = vars["CEX"]                    //save CEX name in CEX variable
 	var sourcetext string                       //initialize sourcetext variable; will hold CEX data
@@ -1528,6 +1595,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")                               //set output format
 			fmt.Fprintln(w, string(resultJSON))
 			log.Println("Error encountered: \"", catalogError, "\"")
+			log.Println("ReturnCatalog executed with exeption")
 
 		}
 	}()
@@ -1538,7 +1606,7 @@ func ReturnCatalog(w http.ResponseWriter, r *http.Request) {
 		requestURN = (requestURN + ":")                                     //add ":" in the end to match appearance in catalog.
 
 		if isCTSURN(requestURN) != true { //test if given URN is valid (bool), if not give an error message
-			message := requestURN + " is not valid CTS."                                                    //build message part of NodeResponse
+			message := requestURN + " is not a valid CTS URN."                                              //build message part of NodeResponse
 			result := NodeResponse{requestURN: []string{requestURN}, Status: "Exception", Message: message} //building result (NodeResponse)
 			result.Service = "/catalog"                                                                     // adding Service part to result (NodeResponse)
 			resultJSON, _ := json.Marshal(result)                                                           //parsing result to JSON format (_ would contain err)
