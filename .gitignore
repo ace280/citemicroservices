@@ -4,7 +4,7 @@ Thumbs.db
 .RData
 .RHistory
 # Development files
-/logs
-/logss
+logs/*
+logss/*
 Discarded\ Code.txt
 config\ blueprint.json
